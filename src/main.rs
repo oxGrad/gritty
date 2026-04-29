@@ -1,4 +1,5 @@
 #![allow(non_snake_case)]
+mod state;
 use dioxus::prelude::*;
 
 fn main() {
