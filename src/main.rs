@@ -7,6 +7,7 @@ mod import;
 mod state;
 
 use canvas::Canvas;
+use components::left_panel::LeftPanel;
 use dioxus::prelude::*;
 use state::AppState;
 
@@ -26,7 +27,7 @@ fn App() -> Element {
                 span { class: "text-sm font-bold tracking-widest", "GRITTY" }
             }
             div { class: "flex flex-1 overflow-hidden",
-                div { class: "w-14 bg-[#221f22] border-r border-[#403e41]" }
+                LeftPanel {}
                 Canvas {}
                 div { class: "w-16 bg-[#221f22] border-l border-[#403e41]" }
             }
