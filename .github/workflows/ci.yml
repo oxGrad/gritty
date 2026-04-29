@@ -26,6 +26,12 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-
 
+      - name: Generate Tailwind CSS
+        run: |
+          curl -L https://github.com/tailwindlabs/tailwindcss/releases/download/v3.4.19/tailwindcss-linux-x64 -o /usr/local/bin/tailwindcss
+          chmod +x /usr/local/bin/tailwindcss
+          tailwindcss -i input.css -o assets/tailwind.css --minify
+
       - name: Check
         run: cargo check --target wasm32-unknown-unknown
 
