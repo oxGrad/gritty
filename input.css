@@ -1,0 +1,27 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --mk-bg:      #2d2a2e;
+  --mk-bg-dark: #221f22;
+  --mk-bg-mid:  #403e41;
+  --mk-fg:      #fcfcfa;
+  --mk-muted:   #9ca0a4;
+  --mk-pink:    #ff6188;
+  --mk-orange:  #fc9867;
+  --mk-yellow:  #ffd866;
+  --mk-green:   #a9dc76;
+  --mk-cyan:    #78dce8;
+  --mk-purple:  #ab9df2;
+}
+
+body {
+  background-color: var(--mk-bg);
+  color: var(--mk-fg);
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  margin: 0;
+  padding: 0;
+  height: 100vh;
+  overflow: hidden;
+}
