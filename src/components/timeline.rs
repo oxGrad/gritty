@@ -16,16 +16,16 @@ pub fn Timeline() -> Element {
 
     rsx! {
         div {
-            class: "h-12 bg-[#221f22] border-t border-[#403e41] flex items-center px-3 gap-2 shrink-0 overflow-x-auto",
+            class: "h-14 bg-[#221f22] border-t border-[#403e41] flex items-center px-3 gap-2 shrink-0 overflow-x-auto",
 
-            span { class: "text-[9px] text-[#9ca0a4] tracking-widest uppercase shrink-0", "FRAMES" }
+            span { class: "text-[11px] text-[#9ca0a4] tracking-widest uppercase shrink-0", "FRAMES" }
 
             for i in 0..frame_count {
                 button {
                     class: if i == active_frame {
-                        "w-8 h-8 rounded text-xs font-bold bg-[#ff6188] text-[#2d2a2e] shrink-0"
+                        "w-9 h-9 rounded text-sm font-bold bg-[#ff6188] text-[#2d2a2e] shrink-0"
                     } else {
-                        "w-8 h-8 rounded text-xs bg-[#403e41] text-[#9ca0a4] hover:bg-[#5b595c] shrink-0"
+                        "w-9 h-9 rounded text-sm bg-[#403e41] text-[#9ca0a4] hover:bg-[#5b595c] shrink-0"
                     },
                     onclick: move |_| app_state.with_mut(|s| s.project.active_frame = i),
                     "{i + 1}"
@@ -34,7 +34,7 @@ pub fn Timeline() -> Element {
 
             div { class: "flex gap-1 shrink-0",
                 button {
-                    class: "w-7 h-7 rounded bg-[#403e41] text-[#a9dc76] hover:bg-[#5b595c] text-sm font-bold",
+                    class: "w-8 h-8 rounded bg-[#403e41] text-[#a9dc76] hover:bg-[#5b595c] text-base font-bold",
                     title: "Add frame",
                     onclick: move |_| app_state.with_mut(|s| {
                         s.project.add_frame();
@@ -43,7 +43,7 @@ pub fn Timeline() -> Element {
                     "+"
                 }
                 button {
-                    class: "w-7 h-7 rounded bg-[#403e41] text-[#78dce8] hover:bg-[#5b595c] text-xs",
+                    class: "w-8 h-8 rounded bg-[#403e41] text-[#78dce8] hover:bg-[#5b595c] text-sm",
                     title: "Duplicate frame",
                     onclick: move |_| app_state.with_mut(|s| {
                         let idx = s.project.active_frame;
@@ -53,7 +53,7 @@ pub fn Timeline() -> Element {
                     "⧉"
                 }
                 button {
-                    class: "w-7 h-7 rounded bg-[#403e41] text-[#fcfcfa] hover:bg-[#5b595c] text-xs",
+                    class: "w-8 h-8 rounded bg-[#403e41] text-[#fcfcfa] hover:bg-[#5b595c] text-sm",
                     title: "Move frame left",
                     onclick: move |_| app_state.with_mut(|s| {
                         let idx = s.project.active_frame;
@@ -62,7 +62,7 @@ pub fn Timeline() -> Element {
                     "←"
                 }
                 button {
-                    class: "w-7 h-7 rounded bg-[#403e41] text-[#fcfcfa] hover:bg-[#5b595c] text-xs",
+                    class: "w-8 h-8 rounded bg-[#403e41] text-[#fcfcfa] hover:bg-[#5b595c] text-sm",
                     title: "Move frame right",
                     onclick: move |_| app_state.with_mut(|s| {
                         let idx = s.project.active_frame;
@@ -71,7 +71,7 @@ pub fn Timeline() -> Element {
                     "→"
                 }
                 button {
-                    class: "w-7 h-7 rounded bg-[#403e41] text-[#ff6188] hover:bg-[#5b595c] text-xs font-bold",
+                    class: "w-8 h-8 rounded bg-[#403e41] text-[#ff6188] hover:bg-[#5b595c] text-sm font-bold",
                     title: "Delete frame",
                     onclick: move |_| app_state.with_mut(|s| {
                         let idx = s.project.active_frame;
@@ -90,7 +90,7 @@ pub fn Timeline() -> Element {
                     min: "50",
                     max: "5000",
                     step: "50",
-                    class: "w-16 bg-[#403e41] text-[#fcfcfa] text-xs text-center rounded px-1 py-0.5 font-mono border border-[#5b595c] focus:outline-none focus:border-[#78dce8]",
+                    class: "w-16 bg-[#403e41] text-[#fcfcfa] text-sm text-center rounded px-1 py-1 font-mono border border-[#5b595c] focus:outline-none focus:border-[#78dce8]",
                     title: "Frame delay (ms)",
                     onchange: move |evt| {
                         if let Ok(ms) = evt.value().parse::<u32>() {
@@ -98,13 +98,13 @@ pub fn Timeline() -> Element {
                         }
                     },
                 }
-                span { class: "text-[9px] text-[#9ca0a4]", "ms" }
+                span { class: "text-[11px] text-[#9ca0a4]", "ms" }
 
                 button {
                     class: if playing {
-                        "px-3 h-7 rounded bg-[#fc9867] text-[#2d2a2e] text-xs font-bold hover:bg-[#e08856] shrink-0"
+                        "px-3 h-9 rounded bg-[#fc9867] text-[#2d2a2e] text-sm font-bold hover:bg-[#e08856] shrink-0"
                     } else {
-                        "px-3 h-7 rounded bg-[#403e41] text-[#78dce8] text-xs font-bold hover:bg-[#5b595c] shrink-0"
+                        "px-3 h-9 rounded bg-[#403e41] text-[#78dce8] text-sm font-bold hover:bg-[#5b595c] shrink-0"
                     },
                     onclick: move |_| {
                         let currently_playing = app_state.read().playback.playing;

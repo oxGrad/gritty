@@ -53,6 +53,23 @@ fn draw_project(state: &AppState) {
             }
         }
     }
+
+    if state.show_grid {
+        ctx.begin_path();
+        ctx.set_stroke_style_str("rgba(255,255,255,0.12)");
+        ctx.set_line_width(0.5);
+        for col in 0..=project.width {
+            let x = col as f64 * CELL_W;
+            ctx.move_to(x, 0.0);
+            ctx.line_to(x, px_h as f64);
+        }
+        for row in 0..=project.height {
+            let y = row as f64 * CELL_H;
+            ctx.move_to(0.0, y);
+            ctx.line_to(px_w as f64, y);
+        }
+        ctx.stroke();
+    }
 }
 
 fn coords_to_cell(x: f64, y: f64) -> (u32, u32) {

@@ -132,6 +132,7 @@ pub struct AppState {
     pub bg_color: [u8; 3],
     pub color_target: ColorTarget,
     pub playback: PlaybackState,
+    pub show_grid: bool,
 }
 
 impl Default for AppState {
@@ -144,6 +145,7 @@ impl Default for AppState {
             bg_color: [34, 31, 34],
             color_target: ColorTarget::Fg,
             playback: PlaybackState::default(),
+            show_grid: false,
         }
     }
 }

@@ -7,17 +7,17 @@ pub fn LeftPanel() -> Element {
 
     rsx! {
         div {
-            class: "flex flex-col gap-2 p-2 bg-[#221f22] border-r border-[#403e41] w-14 overflow-y-auto",
+            class: "flex flex-col gap-2 p-2 bg-[#221f22] border-r border-[#403e41] w-[72px] overflow-y-auto",
 
             div { class: "flex flex-col gap-1",
-                span { class: "text-[9px] text-[#9ca0a4] tracking-widest uppercase", "Tool" }
+                span { class: "text-[11px] text-[#9ca0a4] tracking-widest uppercase", "Tool" }
                 button {
                     class: {
                         let is_brush = app_state.read().tool == Tool::Brush;
                         if is_brush {
-                            "w-full h-7 rounded text-xs font-bold bg-[#ff6188] text-[#2d2a2e]"
+                            "w-full h-8 rounded text-sm font-bold bg-[#ff6188] text-[#2d2a2e]"
                         } else {
-                            "w-full h-7 rounded text-xs bg-[#403e41] text-[#fcfcfa] hover:bg-[#5b595c]"
+                            "w-full h-8 rounded text-sm bg-[#403e41] text-[#fcfcfa] hover:bg-[#5b595c]"
                         }
                     },
                     onclick: move |_| app_state.with_mut(|s| s.tool = Tool::Brush),
@@ -27,9 +27,9 @@ pub fn LeftPanel() -> Element {
                     class: {
                         let is_eraser = app_state.read().tool == Tool::Eraser;
                         if is_eraser {
-                            "w-full h-7 rounded text-xs font-bold bg-[#78dce8] text-[#2d2a2e]"
+                            "w-full h-8 rounded text-sm font-bold bg-[#78dce8] text-[#2d2a2e]"
                         } else {
-                            "w-full h-7 rounded text-xs bg-[#403e41] text-[#fcfcfa] hover:bg-[#5b595c]"
+                            "w-full h-8 rounded text-sm bg-[#403e41] text-[#fcfcfa] hover:bg-[#5b595c]"
                         }
                     },
                     onclick: move |_| app_state.with_mut(|s| s.tool = Tool::Eraser),
@@ -40,10 +40,29 @@ pub fn LeftPanel() -> Element {
             div { class: "border-t border-[#403e41]" }
 
             div { class: "flex flex-col gap-1",
-                span { class: "text-[9px] text-[#9ca0a4] tracking-widest uppercase", "Glyph" }
+                span { class: "text-[11px] text-[#9ca0a4] tracking-widest uppercase", "Grid" }
+                button {
+                    class: {
+                        let show = app_state.read().show_grid;
+                        if show {
+                            "w-full h-8 rounded text-sm font-bold bg-[#ffd866] text-[#2d2a2e]"
+                        } else {
+                            "w-full h-8 rounded text-sm bg-[#403e41] text-[#fcfcfa] hover:bg-[#5b595c]"
+                        }
+                    },
+                    title: "Toggle grid",
+                    onclick: move |_| app_state.with_mut(|s| s.show_grid = !s.show_grid),
+                    "⊞"
+                }
+            }
+
+            div { class: "border-t border-[#403e41]" }
+
+            div { class: "flex flex-col gap-1",
+                span { class: "text-[11px] text-[#9ca0a4] tracking-widest uppercase", "Glyph" }
                 for (label, glyphs) in GLYPH_GROUPS.iter() {
                     div { class: "flex flex-col gap-0.5",
-                        span { class: "text-[8px] text-[#5b595c]", "{label}" }
+                        span { class: "text-[10px] text-[#5b595c]", "{label}" }
                         div { class: "flex flex-wrap gap-0.5",
                             for ch in glyphs.iter() {
                                 {
@@ -52,9 +71,9 @@ pub fn LeftPanel() -> Element {
                                     rsx! {
                                         button {
                                             class: if is_active {
-                                                "w-6 h-6 text-sm rounded bg-[#ffd866] text-[#2d2a2e] font-bold"
+                                                "w-7 h-7 text-base rounded bg-[#ffd866] text-[#2d2a2e] font-bold"
                                             } else {
-                                                "w-6 h-6 text-sm rounded bg-[#403e41] text-[#fcfcfa] hover:bg-[#5b595c]"
+                                                "w-7 h-7 text-base rounded bg-[#403e41] text-[#fcfcfa] hover:bg-[#5b595c]"
                                             },
                                             onclick: move |_| app_state.with_mut(|s| s.active_glyph = ch),
                                             "{ch}"

@@ -34,14 +34,14 @@ pub fn TopBar() -> Element {
 
     rsx! {
         div {
-            class: "h-10 bg-[#221f22] border-b border-[#403e41] flex items-center px-3 gap-4 shrink-0",
+            class: "h-12 bg-[#221f22] border-b border-[#403e41] flex items-center px-3 gap-4 shrink-0",
 
-            span { class: "text-sm font-bold tracking-widest text-[#fcfcfa]", "GRITTY" }
-            span { class: "text-xs text-[#9ca0a4] font-mono", "{w}×{h}" }
+            span { class: "text-base font-bold tracking-widest text-[#fcfcfa]", "GRITTY" }
+            span { class: "text-sm text-[#9ca0a4] font-mono", "{w}×{h}" }
             div { class: "flex-1" }
 
             label {
-                class: "text-xs bg-[#403e41] hover:bg-[#5b595c] text-[#a9dc76] px-2 py-1 rounded cursor-pointer",
+                class: "text-sm bg-[#403e41] hover:bg-[#5b595c] text-[#a9dc76] px-3 py-1.5 rounded cursor-pointer",
                 r#for: "file-import",
                 "Import"
             }
@@ -82,7 +82,7 @@ pub fn TopBar() -> Element {
             }
 
             button {
-                class: "text-xs bg-[#ff6188] hover:bg-[#e05078] text-[#2d2a2e] font-bold px-2 py-1 rounded",
+                class: "text-sm bg-[#ff6188] hover:bg-[#e05078] text-[#2d2a2e] font-bold px-3 py-1.5 rounded",
                 onclick: move |_| export_open.set(true),
                 "Export"
             }
@@ -100,9 +100,9 @@ pub fn TopBar() -> Element {
                             for (i, label) in ["ANSI", "Plain+ANSI", "JSON"].iter().enumerate() {
                                 button {
                                     class: if *export_tab.read() == i {
-                                        "px-4 py-2 text-xs font-bold text-[#ff6188] border-b-2 border-[#ff6188]"
+                                        "px-4 py-2 text-sm font-bold text-[#ff6188] border-b-2 border-[#ff6188]"
                                     } else {
-                                        "px-4 py-2 text-xs text-[#9ca0a4] hover:text-[#fcfcfa]"
+                                        "px-4 py-2 text-sm text-[#9ca0a4] hover:text-[#fcfcfa]"
                                     },
                                     onclick: move |_| export_tab.set(i),
                                     "{label}"
@@ -110,7 +110,7 @@ pub fn TopBar() -> Element {
                             }
                             div { class: "flex-1" }
                             button {
-                                class: "px-3 py-2 text-[#9ca0a4] hover:text-[#fcfcfa] text-sm",
+                                class: "px-3 py-2 text-[#9ca0a4] hover:text-[#fcfcfa] text-base",
                                 onclick: move |_| export_open.set(false),
                                 "✕"
                             }
@@ -118,21 +118,21 @@ pub fn TopBar() -> Element {
 
                         if *export_tab.read() < 2 {
                             div { class: "flex items-center gap-2 px-4 py-2 border-b border-[#403e41]",
-                                span { class: "text-xs text-[#9ca0a4]", "Scope:" }
+                                span { class: "text-sm text-[#9ca0a4]", "Scope:" }
                                 button {
                                     class: if !*all_frames.read() {
-                                        "text-xs px-2 py-0.5 rounded bg-[#ff6188] text-[#2d2a2e] font-bold"
+                                        "text-sm px-2 py-1 rounded bg-[#ff6188] text-[#2d2a2e] font-bold"
                                     } else {
-                                        "text-xs px-2 py-0.5 rounded bg-[#403e41] text-[#fcfcfa]"
+                                        "text-sm px-2 py-1 rounded bg-[#403e41] text-[#fcfcfa]"
                                     },
                                     onclick: move |_| all_frames.set(false),
                                     "Current frame"
                                 }
                                 button {
                                     class: if *all_frames.read() {
-                                        "text-xs px-2 py-0.5 rounded bg-[#ff6188] text-[#2d2a2e] font-bold"
+                                        "text-sm px-2 py-1 rounded bg-[#ff6188] text-[#2d2a2e] font-bold"
                                     } else {
-                                        "text-xs px-2 py-0.5 rounded bg-[#403e41] text-[#fcfcfa]"
+                                        "text-sm px-2 py-1 rounded bg-[#403e41] text-[#fcfcfa]"
                                     },
                                     onclick: move |_| all_frames.set(true),
                                     "All frames"
@@ -143,11 +143,11 @@ pub fn TopBar() -> Element {
                         if *export_tab.read() < 2 {
                             div { class: "flex flex-col flex-1 overflow-hidden p-3 gap-2",
                                 pre {
-                                    class: "flex-1 overflow-auto text-xs font-mono text-[#fcfcfa] bg-[#19181a] p-3 rounded border border-[#403e41] whitespace-pre",
+                                    class: "flex-1 overflow-auto text-sm font-mono text-[#fcfcfa] bg-[#19181a] p-3 rounded border border-[#403e41] whitespace-pre",
                                     "{export_text}"
                                 }
                                 button {
-                                    class: "self-end text-xs bg-[#403e41] hover:bg-[#5b595c] text-[#78dce8] px-3 py-1 rounded",
+                                    class: "self-end text-sm bg-[#403e41] hover:bg-[#5b595c] text-[#78dce8] px-3 py-1.5 rounded",
                                     onclick: {
                                         let text = export_text.clone();
                                         move |_| {
@@ -161,9 +161,9 @@ pub fn TopBar() -> Element {
                             }
                         } else {
                             div { class: "flex flex-col items-center justify-center flex-1 gap-4 p-6",
-                                p { class: "text-sm text-[#9ca0a4]", "Downloads the full project (all frames) as .json" }
+                                p { class: "text-base text-[#9ca0a4]", "Downloads the full project (all frames) as .json" }
                                 button {
-                                    class: "bg-[#ff6188] text-[#2d2a2e] font-bold px-6 py-2 rounded hover:bg-[#e05078]",
+                                    class: "bg-[#ff6188] text-[#2d2a2e] font-bold text-sm px-6 py-2 rounded hover:bg-[#e05078]",
                                     onclick: move |_| {
                                         let json = export_json(&app_state.read().project);
                                         download_string(&json, "gritty-project.json", "application/json");

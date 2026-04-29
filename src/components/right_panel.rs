@@ -110,9 +110,9 @@ pub fn RightPanel() -> Element {
 
     rsx! {
         div {
-            class: "flex flex-col items-center gap-2 p-2 bg-[#221f22] border-l border-[#403e41] w-[136px] overflow-y-auto",
+            class: "flex flex-col items-center gap-2 p-2 bg-[#221f22] border-l border-[#403e41] w-[148px] overflow-y-auto",
 
-            span { class: "text-[9px] text-[#9ca0a4] tracking-widest uppercase self-start", "Color" }
+            span { class: "text-[11px] text-[#9ca0a4] tracking-widest uppercase self-start", "Color" }
 
             canvas {
                 id: WHEEL_ID,
@@ -160,7 +160,7 @@ pub fn RightPanel() -> Element {
                 r#type: "text",
                 value: "{hex_value}",
                 maxlength: 7,
-                class: "w-full bg-[#403e41] text-[#fcfcfa] text-xs text-center rounded px-1 py-0.5 font-mono border border-[#5b595c] focus:outline-none focus:border-[#ff6188]",
+                class: "w-full bg-[#403e41] text-[#fcfcfa] text-sm text-center rounded px-1 py-1 font-mono border border-[#5b595c] focus:outline-none focus:border-[#ff6188]",
                 onchange: move |evt| {
                     if let Some(rgb) = parse_hex(&evt.value()) {
                         app_state.with_mut(|s| {
@@ -174,13 +174,13 @@ pub fn RightPanel() -> Element {
             }
 
             div { class: "flex flex-col gap-1 w-full",
-                span { class: "text-[9px] text-[#9ca0a4] tracking-widest uppercase", "FG / BG" }
+                span { class: "text-[11px] text-[#9ca0a4] tracking-widest uppercase", "FG / BG" }
                 div { class: "flex gap-1",
                     button {
                         class: if matches!(color_target, ColorTarget::Fg) {
-                            "flex-1 h-7 rounded border-2 border-[#ffd866]"
+                            "flex-1 h-8 rounded border-2 border-[#ffd866]"
                         } else {
-                            "flex-1 h-7 rounded border-2 border-transparent hover:border-[#5b595c]"
+                            "flex-1 h-8 rounded border-2 border-transparent hover:border-[#5b595c]"
                         },
                         style: "background-color: {fg_hex};",
                         onclick: move |_| app_state.with_mut(|s| s.color_target = ColorTarget::Fg),
@@ -188,9 +188,9 @@ pub fn RightPanel() -> Element {
                     }
                     button {
                         class: if matches!(color_target, ColorTarget::Bg) {
-                            "flex-1 h-7 rounded border-2 border-[#ffd866]"
+                            "flex-1 h-8 rounded border-2 border-[#ffd866]"
                         } else {
-                            "flex-1 h-7 rounded border-2 border-transparent hover:border-[#5b595c]"
+                            "flex-1 h-8 rounded border-2 border-transparent hover:border-[#5b595c]"
                         },
                         style: "background-color: {bg_hex};",
                         onclick: move |_| app_state.with_mut(|s| s.color_target = ColorTarget::Bg),
