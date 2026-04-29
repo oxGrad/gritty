@@ -9,7 +9,7 @@ use crate::state::AppState;
 
 #[component]
 pub fn TopBar() -> Element {
-    let mut app_state = use_context::<Signal<AppState>>();
+    let app_state = use_context::<Signal<AppState>>();
     let mut export_open = use_signal(|| false);
     let mut export_tab = use_signal(|| 0usize);
     let mut all_frames = use_signal(|| false);
@@ -184,7 +184,7 @@ fn download_string(content: &str, filename: &str, mime: &str) {
     let Some(document) = window.document() else { return };
     let array = Array::new();
     array.push(&wasm_bindgen::JsValue::from_str(content));
-    let mut opts = BlobPropertyBag::new();
+    let opts = BlobPropertyBag::new();
     opts.set_type(mime);
     let Ok(blob) = Blob::new_with_str_sequence_and_options(&array, &opts) else { return };
     let Ok(url) = Url::create_object_url_with_blob(&blob) else { return };
