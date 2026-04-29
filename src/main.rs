@@ -8,6 +8,7 @@ mod state;
 
 use canvas::Canvas;
 use components::left_panel::LeftPanel;
+use components::right_panel::RightPanel;
 use dioxus::prelude::*;
 use state::AppState;
 
@@ -29,7 +30,7 @@ fn App() -> Element {
             div { class: "flex flex-1 overflow-hidden",
                 LeftPanel {}
                 Canvas {}
-                div { class: "w-16 bg-[#221f22] border-l border-[#403e41]" }
+                RightPanel {}
             }
             div { class: "h-12 bg-[#221f22] border-t border-[#403e41]" }
         }
