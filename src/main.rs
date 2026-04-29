@@ -9,6 +9,7 @@ mod state;
 use canvas::Canvas;
 use components::left_panel::LeftPanel;
 use components::right_panel::RightPanel;
+use components::top_bar::TopBar;
 use dioxus::prelude::*;
 use state::AppState;
 
@@ -24,9 +25,7 @@ fn App() -> Element {
         document::Stylesheet { href: asset!("/assets/tailwind.css") }
         div {
             class: "flex flex-col h-screen bg-[#2d2a2e] text-[#fcfcfa]",
-            div { class: "h-10 bg-[#221f22] border-b border-[#403e41] flex items-center px-3",
-                span { class: "text-sm font-bold tracking-widest", "GRITTY" }
-            }
+            TopBar {}
             div { class: "flex flex-1 overflow-hidden",
                 LeftPanel {}
                 Canvas {}
