@@ -20,6 +20,8 @@ pub fn LeftPanel() -> Element {
                             "w-full h-8 rounded text-sm bg-[#403e41] text-[#fcfcfa] hover:bg-[#5b595c]"
                         }
                     },
+                    aria_label: "Brush",
+                    aria_pressed: if app_state.read().tool == Tool::Brush { "true" } else { "false" },
                     onclick: move |_| app_state.with_mut(|s| s.tool = Tool::Brush),
                     "✏"
                 }
@@ -32,6 +34,8 @@ pub fn LeftPanel() -> Element {
                             "w-full h-8 rounded text-sm bg-[#403e41] text-[#fcfcfa] hover:bg-[#5b595c]"
                         }
                     },
+                    aria_label: "Eraser",
+                    aria_pressed: if app_state.read().tool == Tool::Eraser { "true" } else { "false" },
                     onclick: move |_| app_state.with_mut(|s| s.tool = Tool::Eraser),
                     "◻"
                 }
@@ -51,6 +55,8 @@ pub fn LeftPanel() -> Element {
                         }
                     },
                     title: "Toggle grid",
+                    aria_label: if app_state.read().show_grid { "Hide grid" } else { "Show grid" },
+                    aria_pressed: if app_state.read().show_grid { "true" } else { "false" },
                     onclick: move |_| app_state.with_mut(|s| s.show_grid = !s.show_grid),
                     "⊞"
                 }
@@ -75,6 +81,8 @@ pub fn LeftPanel() -> Element {
                                             } else {
                                                 "w-7 h-7 text-base rounded bg-[#403e41] text-[#fcfcfa] hover:bg-[#5b595c]"
                                             },
+                                            aria_label: "Glyph {ch}",
+                                            aria_pressed: if is_active { "true" } else { "false" },
                                             onclick: move |_| app_state.with_mut(|s| s.active_glyph = ch),
                                             "{ch}"
                                         }

@@ -1,8 +1,15 @@
+use std::cell::RefCell;
+
 use dioxus::prelude::*;
 use wasm_bindgen::closure::Closure;
 use wasm_bindgen::JsCast;
 
 use crate::state::AppState;
+
+thread_local! {
+    // Owns the interval callback so it stays alive without forget().
+    static INTERVAL_CB: RefCell<Option<Closure<dyn FnMut()>>> = RefCell::new(None);
+}
 
 #[component]
 pub fn Timeline() -> Element {
@@ -27,6 +34,8 @@ pub fn Timeline() -> Element {
                     } else {
                         "w-9 h-9 rounded text-sm bg-[#403e41] text-[#9ca0a4] hover:bg-[#5b595c] shrink-0"
                     },
+                    aria_label: "Frame {i + 1}",
+                    aria_pressed: if i == active_frame { "true" } else { "false" },
                     onclick: move |_| app_state.with_mut(|s| s.project.active_frame = i),
                     "{i + 1}"
                 }
@@ -36,6 +45,7 @@ pub fn Timeline() -> Element {
                 button {
                     class: "w-8 h-8 rounded bg-[#403e41] text-[#a9dc76] hover:bg-[#5b595c] text-base font-bold",
                     title: "Add frame",
+                    aria_label: "Add frame",
                     onclick: move |_| app_state.with_mut(|s| {
                         s.project.add_frame();
                         s.project.active_frame = s.project.frames.len() - 1;
@@ -45,6 +55,7 @@ pub fn Timeline() -> Element {
                 button {
                     class: "w-8 h-8 rounded bg-[#403e41] text-[#78dce8] hover:bg-[#5b595c] text-sm",
                     title: "Duplicate frame",
+                    aria_label: "Duplicate frame",
                     onclick: move |_| app_state.with_mut(|s| {
                         let idx = s.project.active_frame;
                         s.project.duplicate_frame(idx);
@@ -55,6 +66,7 @@ pub fn Timeline() -> Element {
                 button {
                     class: "w-8 h-8 rounded bg-[#403e41] text-[#fcfcfa] hover:bg-[#5b595c] text-sm",
                     title: "Move frame left",
+                    aria_label: "Move frame left",
                     onclick: move |_| app_state.with_mut(|s| {
                         let idx = s.project.active_frame;
                         s.project.move_frame_up(idx);
@@ -64,6 +76,7 @@ pub fn Timeline() -> Element {
                 button {
                     class: "w-8 h-8 rounded bg-[#403e41] text-[#fcfcfa] hover:bg-[#5b595c] text-sm",
                     title: "Move frame right",
+                    aria_label: "Move frame right",
                     onclick: move |_| app_state.with_mut(|s| {
                         let idx = s.project.active_frame;
                         s.project.move_frame_down(idx);
@@ -73,6 +86,7 @@ pub fn Timeline() -> Element {
                 button {
                     class: "w-8 h-8 rounded bg-[#403e41] text-[#ff6188] hover:bg-[#5b595c] text-sm font-bold",
                     title: "Delete frame",
+                    aria_label: "Delete current frame",
                     onclick: move |_| app_state.with_mut(|s| {
                         let idx = s.project.active_frame;
                         s.project.delete_frame(idx);
@@ -90,8 +104,9 @@ pub fn Timeline() -> Element {
                     min: "50",
                     max: "5000",
                     step: "50",
-                    class: "w-16 bg-[#403e41] text-[#fcfcfa] text-sm text-center rounded px-1 py-1 font-mono border border-[#5b595c] focus:outline-none focus:border-[#78dce8]",
+                    class: "w-16 bg-[#403e41] text-[#fcfcfa] text-sm text-center rounded px-1 py-1 font-mono border border-[#5b595c] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#78dce8]",
                     title: "Frame delay (ms)",
+                    aria_label: "Frame delay in milliseconds",
                     onchange: move |evt| {
                         if let Ok(ms) = evt.value().parse::<u32>() {
                             app_state.with_mut(|s| s.playback.delay_ms = ms.max(50));
@@ -106,6 +121,7 @@ pub fn Timeline() -> Element {
                     } else {
                         "px-3 h-9 rounded bg-[#403e41] text-[#78dce8] text-sm font-bold hover:bg-[#5b595c] shrink-0"
                     },
+                    aria_label: if playing { "Stop playback" } else { "Play animation" },
                     onclick: move |_| {
                         let currently_playing = app_state.read().playback.playing;
                         if currently_playing {
@@ -116,6 +132,7 @@ pub fn Timeline() -> Element {
                                 }
                             }
                             interval_id.set(None);
+                            INTERVAL_CB.with(|c| *c.borrow_mut() = None);
                         } else {
                             app_state.with_mut(|s| s.playback.playing = true);
                             let delay = app_state.read().playback.delay_ms as i32;
@@ -134,7 +151,7 @@ pub fn Timeline() -> Element {
                                     interval_id.set(Some(id));
                                 }
                             }
-                            cb.forget();
+                            INTERVAL_CB.with(|c| *c.borrow_mut() = Some(cb));
                         }
                     },
                     if playing { "■ Stop" } else { "▶ Play" }

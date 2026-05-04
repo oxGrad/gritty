@@ -25,8 +25,10 @@ fn draw_project(state: &AppState) {
 
     let px_w = (project.width as f64 * CELL_W) as u32;
     let px_h = (project.height as f64 * CELL_H) as u32;
-    canvas.set_width(px_w);
-    canvas.set_height(px_h);
+    let dpr = web_sys::window().map(|w| w.device_pixel_ratio()).unwrap_or(1.0);
+    canvas.set_width((px_w as f64 * dpr) as u32);
+    canvas.set_height((px_h as f64 * dpr) as u32);
+    let _ = ctx.scale(dpr, dpr);
 
     ctx.set_font(&format!("{}px monospace", CELL_H as u32));
     ctx.set_text_baseline("top");
@@ -100,12 +102,19 @@ pub fn Canvas() -> Element {
         draw_project(&state);
     });
 
+    let (css_w, css_h) = {
+        let s = app_state.read();
+        let w = (s.project.width as f64 * CELL_W) as u32;
+        let h = (s.project.height as f64 * CELL_H) as u32;
+        (w, h)
+    };
+
     rsx! {
         div {
             class: "flex-1 overflow-auto bg-[#19181a] flex items-start justify-start p-2",
             canvas {
                 id: CANVAS_ID,
-                style: "cursor: crosshair; image-rendering: pixelated;",
+                style: "cursor: crosshair; image-rendering: pixelated; width: {css_w}px; height: {css_h}px;",
                 onmousedown: move |evt| {
                     is_painting.set(true);
                     let coords = evt.element_coordinates();

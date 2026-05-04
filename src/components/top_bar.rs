@@ -14,6 +14,18 @@ pub fn TopBar() -> Element {
     let mut export_tab = use_signal(|| 0usize);
     let mut all_frames = use_signal(|| false);
 
+    use_effect(move || {
+        if *export_open.read() {
+            if let Some(doc) = web_sys::window().and_then(|w| w.document()) {
+                if let Some(el) = doc.get_element_by_id("export-dialog") {
+                    if let Ok(html_el) = el.dyn_into::<web_sys::HtmlElement>() {
+                        let _ = html_el.focus();
+                    }
+                }
+            }
+        }
+    });
+
     let (w, h) = {
         let s = app_state.read();
         (s.project.width, s.project.height)
@@ -93,8 +105,18 @@ pub fn TopBar() -> Element {
                     style: "background: rgba(0,0,0,0.6);",
                     onclick: move |_| export_open.set(false),
                     div {
-                        class: "bg-[#2d2a2e] border border-[#403e41] rounded-lg w-[560px] max-h-[80vh] flex flex-col overflow-hidden",
+                        id: "export-dialog",
+                        role: "dialog",
+                        aria_modal: "true",
+                        aria_label: "Export",
+                        tabindex: "-1",
+                        class: "bg-[#2d2a2e] border border-[#403e41] rounded-lg w-[560px] max-h-[80vh] flex flex-col overflow-hidden focus:outline-none",
                         onclick: move |evt| evt.stop_propagation(),
+                        onkeydown: move |evt| {
+                            if evt.key() == Key::Escape {
+                                export_open.set(false);
+                            }
+                        },
 
                         div { class: "flex items-center border-b border-[#403e41]",
                             for (i, label) in ["ANSI", "Plain+ANSI", "JSON"].iter().enumerate() {
@@ -111,6 +133,7 @@ pub fn TopBar() -> Element {
                             div { class: "flex-1" }
                             button {
                                 class: "px-3 py-2 text-[#9ca0a4] hover:text-[#fcfcfa] text-base",
+                                aria_label: "Close export dialog",
                                 onclick: move |_| export_open.set(false),
                                 "✕"
                             }
