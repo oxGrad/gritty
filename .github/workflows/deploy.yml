@@ -3,7 +3,7 @@ name: Deploy
 on:
   push:
     tags:
-      - 'v[0-9]+.[0-9]+.[0-9]+'
+      - "v[0-9]+.[0-9]+.[0-9]+"
 
 jobs:
   deploy:
@@ -47,5 +47,4 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy dist --project-name=gritty --commit-dirty=true
-
+          command: pages deploy target/dx/gritty/release/web/public --project-name=gritty --commit-dirty=true
