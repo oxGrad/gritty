@@ -12,7 +12,7 @@ const WHEEL_SIZE: u32 = 120;
 const RING_W: f64 = 16.0;
 
 thread_local! {
-    static RING_CACHE: RefCell<Option<(f64, f64, Vec<u8>)>> = RefCell::new(None);
+    static RING_CACHE: RefCell<Option<(f64, f64, Vec<u8>)>> = const { RefCell::new(None) };
 }
 
 fn get_wheel_ctx() -> Option<(HtmlCanvasElement, CanvasRenderingContext2d)> {

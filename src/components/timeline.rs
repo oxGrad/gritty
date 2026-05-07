@@ -7,7 +7,7 @@ use wasm_bindgen::JsCast;
 use crate::state::AppState;
 
 thread_local! {
-    static INTERVAL_CB: RefCell<Option<Closure<dyn FnMut()>>> = RefCell::new(None);
+    static INTERVAL_CB: RefCell<Option<Closure<dyn FnMut()>>> = const { RefCell::new(None) };
 }
 
 #[component]
