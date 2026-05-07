@@ -118,16 +118,21 @@ pub fn Canvas() -> Element {
     let mut pan_start_offset = use_signal(|| (0.0f64, 0.0f64));
     let mut last_mouse = use_signal(|| (0.0f64, 0.0f64));
 
-    // Centre canvas in viewport at 2× zoom on first render.
+    // On retina screens (dpr=2) we start at zoom=1 so each logical canvas pixel
+    // maps to exactly one physical screen pixel — the DPR buffer handles sharpness.
+    let dpr_val = web_sys::window().map(|w| w.device_pixel_ratio()).unwrap_or(1.0);
+    let mut dpr_signal: Signal<f64> = use_signal(|| dpr_val);
+    let init_zoom = (2.0 / dpr_val).max(1.0);
+
+    // Centre canvas in viewport at DPR-aware zoom on first render.
     let (init_px, init_py) = {
         let (vw, vh) = window_size();
         let s = app_state.read();
-        let z = 2.0f64;
-        let cw = s.project.width as f64 * CELL_W * z;
-        let ch = s.project.height as f64 * CELL_H * z;
+        let cw = s.project.width as f64 * CELL_W * init_zoom;
+        let ch = s.project.height as f64 * CELL_H * init_zoom;
         ((vw - cw) / 2.0, (vh - ch) / 2.0)
     };
-    let mut zoom = use_signal(|| 2.0f64);
+    let mut zoom = use_signal(|| init_zoom);
     let mut pan_x = use_signal(|| init_px);
     let mut pan_y = use_signal(|| init_py);
 
@@ -155,7 +160,23 @@ pub fn Canvas() -> Element {
         up_cb.forget();
     });
 
+    // Detect DPR changes (browser zoom, moving window between monitors).
     use_effect(move || {
+        let win = web_sys::window().unwrap();
+        let cb = Closure::<dyn FnMut()>::wrap(Box::new(move || {
+            let new_dpr = web_sys::window()
+                .map(|w| w.device_pixel_ratio())
+                .unwrap_or(1.0);
+            if (*dpr_signal.peek() - new_dpr).abs() > 0.01 {
+                dpr_signal.set(new_dpr);
+            }
+        }));
+        win.add_event_listener_with_callback("resize", cb.as_ref().unchecked_ref()).unwrap();
+        cb.forget();
+    });
+
+    use_effect(move || {
+        let _ = *dpr_signal.read(); // re-run whenever DPR changes
         draw_project(&app_state.read());
     });
 

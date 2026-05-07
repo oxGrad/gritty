@@ -1,6 +1,7 @@
 use std::cell::RefCell;
 
 use dioxus::prelude::*;
+use wasm_bindgen::closure::Closure;
 use wasm_bindgen::{Clamped, JsCast};
 use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement, ImageData};
 
@@ -115,6 +116,26 @@ fn draw_wheel(hue: f64, sat: f64, val: f64) {
 pub fn RightPanel() -> Element {
     let mut app_state = use_context::<Signal<AppState>>();
 
+    let mut dpr_signal: Signal<f64> = use_signal(|| {
+        web_sys::window().map(|w| w.device_pixel_ratio()).unwrap_or(1.0)
+    });
+
+    // Redraw wheel at the correct resolution when moving between retina/non-retina monitors.
+    use_effect(move || {
+        let win = web_sys::window().unwrap();
+        let cb = Closure::<dyn FnMut()>::wrap(Box::new(move || {
+            let new_dpr = web_sys::window()
+                .map(|w| w.device_pixel_ratio())
+                .unwrap_or(1.0);
+            if (*dpr_signal.peek() - new_dpr).abs() > 0.01 {
+                RING_CACHE.with(|c| *c.borrow_mut() = None);
+                dpr_signal.set(new_dpr);
+            }
+        }));
+        win.add_event_listener_with_callback("resize", cb.as_ref().unchecked_ref()).unwrap();
+        cb.forget();
+    });
+
     let show = app_state.read().show_right_panel;
 
     if !show {
@@ -129,6 +150,7 @@ pub fn RightPanel() -> Element {
     }
 
     use_effect(move || {
+        let _ = *dpr_signal.read(); // re-run whenever DPR changes
         let state = app_state.read();
         let active_color = match state.color_target {
             ColorTarget::Fg => state.fg_color,
