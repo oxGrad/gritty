@@ -1,4 +1,6 @@
 use dioxus::prelude::*;
+use wasm_bindgen::closure::Closure;
+use wasm_bindgen::JsCast;
 use crate::state::{AppState, Tool, GLYPH_GROUPS};
 
 #[component]
@@ -17,6 +19,28 @@ pub fn LeftPanel() -> Element {
             }
         };
     }
+
+    // 'E' key toggles eraser on/off from anywhere on the page.
+    use_effect(move || {
+        let cb = Closure::<dyn FnMut(_)>::wrap(Box::new(move |evt: web_sys::KeyboardEvent| {
+            // Ignore when focus is inside a text input so typing isn't hijacked.
+            if let Some(target) = evt.target() {
+                if let Ok(el) = target.dyn_into::<web_sys::HtmlElement>() {
+                    let tag = el.tag_name().to_lowercase();
+                    if tag == "input" || tag == "textarea" { return; }
+                }
+            }
+            if evt.code() == "KeyE" && !evt.ctrl_key() && !evt.meta_key() {
+                app_state.with_mut(|s| {
+                    s.tool = if s.tool == Tool::Eraser { Tool::Brush } else { Tool::Eraser };
+                });
+            }
+        }));
+        web_sys::window().unwrap().document().unwrap()
+            .add_event_listener_with_callback("keydown", cb.as_ref().unchecked_ref())
+            .unwrap();
+        cb.forget();
+    });
 
     rsx! {
         div {
@@ -42,9 +66,12 @@ pub fn LeftPanel() -> Element {
                     } else {
                         "w-full h-8 rounded-lg text-sm bg-[#2e2e2e] text-[#fcfcfa] hover:bg-[#383838]"
                     },
+                    title: "Eraser (E)",
                     aria_label: "Eraser",
                     aria_pressed: if app_state.read().tool == Tool::Eraser { "true" } else { "false" },
-                    onclick: move |_| app_state.with_mut(|s| s.tool = Tool::Eraser),
+                    onclick: move |_| app_state.with_mut(|s| {
+                        s.tool = if s.tool == Tool::Eraser { Tool::Brush } else { Tool::Eraser };
+                    }),
                     "◻"
                 }
             }
