@@ -154,22 +154,39 @@ pub fn Canvas() -> Element {
             style: if panning { "cursor: grabbing;" } else { "cursor: crosshair;" },
 
             onwheel: move |evt| {
-                let delta_y = match evt.delta() {
-                    WheelDelta::Pixels(v) => v.y,
-                    WheelDelta::Lines(v)  => v.y * 20.0,
-                    WheelDelta::Pages(v)  => v.y * 300.0,
+                let delta_x = match evt.delta() {
+                    WheelDelta::Pixels(v) => (v.x, v.y),
+                    WheelDelta::Lines(v)  => (v.x * 20.0, v.y * 20.0),
+                    WheelDelta::Pages(v)  => (v.x * 300.0, v.y * 300.0),
                 };
-                if delta_y == 0.0 { return; }
-                let factor = if delta_y > 0.0 { 1.0 / 1.1 } else { 1.1 };
-                let old_z = *zoom.read();
-                let new_z = (old_z * factor).clamp(0.1, 16.0);
-                let (mx, my) = *last_mouse.read();
-                let ratio = new_z / old_z;
-                let old_px = *pan_x.read();
-                let old_py = *pan_y.read();
-                pan_x.set(mx * (1.0 - ratio) + old_px * ratio);
-                pan_y.set(my * (1.0 - ratio) + old_py * ratio);
-                zoom.set(new_z);
+                let (dx, dy) = delta_x;
+                if evt.modifiers().ctrl() {
+                    // Ctrl+scroll → zoom to cursor
+                    if dy == 0.0 { return; }
+                    let factor = if dy > 0.0 { 1.0 / 1.1 } else { 1.1 };
+                    let old_z = *zoom.read();
+                    let new_z = (old_z * factor).clamp(0.1, 16.0);
+                    let (mx, my) = *last_mouse.read();
+                    let ratio = new_z / old_z;
+                    let old_px = *pan_x.read();
+                    let old_py = *pan_y.read();
+                    pan_x.set(mx * (1.0 - ratio) + old_px * ratio);
+                    pan_y.set(my * (1.0 - ratio) + old_py * ratio);
+                    zoom.set(new_z);
+                } else if evt.modifiers().shift() {
+                    // Shift+scroll → pan horizontally (use dy when device only sends dy)
+                    let scroll = if dx != 0.0 { dx } else { dy };
+                    let cur = *pan_x.read();
+                    pan_x.set(cur - scroll);
+                } else {
+                    // Plain scroll → pan (vertical + horizontal for trackpads)
+                    let cur_y = *pan_y.read();
+                    pan_y.set(cur_y - dy);
+                    if dx != 0.0 {
+                        let cur_x = *pan_x.read();
+                        pan_x.set(cur_x - dx);
+                    }
+                }
             },
 
             onmousedown: move |evt| {
