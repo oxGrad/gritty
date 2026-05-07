@@ -1,8 +1,9 @@
 use dioxus::prelude::*;
 use dioxus_elements::geometry::WheelDelta;
 use dioxus_elements::input_data::MouseButton;
+use wasm_bindgen::closure::Closure;
 use wasm_bindgen::JsCast;
-use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement};
+use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement, KeyboardEvent};
 
 use crate::state::{AppState, Tool, CELL_H, CELL_W};
 
@@ -112,6 +113,7 @@ pub fn Canvas() -> Element {
     let mut app_state = use_context::<Signal<AppState>>();
     let mut is_painting = use_signal(|| false);
     let mut is_panning = use_signal(|| false);
+    let mut space_held = use_signal(|| false);
     let mut pan_start = use_signal(|| (0.0f64, 0.0f64));
     let mut pan_start_offset = use_signal(|| (0.0f64, 0.0f64));
     let mut last_mouse = use_signal(|| (0.0f64, 0.0f64));
@@ -129,6 +131,30 @@ pub fn Canvas() -> Element {
     let mut pan_x = use_signal(|| init_px);
     let mut pan_y = use_signal(|| init_py);
 
+    // Global spacebar listeners — space held turns left-drag into pan.
+    use_effect(move || {
+        let document = web_sys::window().unwrap().document().unwrap();
+
+        let down_cb = Closure::<dyn FnMut(_)>::wrap(Box::new(move |evt: KeyboardEvent| {
+            if evt.code() == "Space" {
+                evt.prevent_default(); // stop browser from scrolling
+                space_held.set(true);
+            }
+        }));
+        let up_cb = Closure::<dyn FnMut(_)>::wrap(Box::new(move |evt: KeyboardEvent| {
+            if evt.code() == "Space" {
+                space_held.set(false);
+            }
+        }));
+
+        document.add_event_listener_with_callback("keydown", down_cb.as_ref().unchecked_ref()).unwrap();
+        document.add_event_listener_with_callback("keyup",   up_cb.as_ref().unchecked_ref()).unwrap();
+
+        // Leak the closures — they live for the app's lifetime.
+        down_cb.forget();
+        up_cb.forget();
+    });
+
     use_effect(move || {
         draw_project(&app_state.read());
     });
@@ -145,13 +171,18 @@ pub fn Canvas() -> Element {
     let px = *pan_x.read();
     let py = *pan_y.read();
     let panning = *is_panning.read();
+    let space = *space_held.read();
     let zoom_pct = (z * 100.0).round() as i32;
+
+    let cursor = if panning { "cursor: grabbing;" }
+                 else if space { "cursor: grab;" }
+                 else { "cursor: crosshair;" };
 
     rsx! {
         // Workspace — fills full viewport, sits behind all floating panels.
         div {
             class: "absolute inset-0",
-            style: if panning { "cursor: grabbing;" } else { "cursor: crosshair;" },
+            style: cursor,
 
             onwheel: move |evt| {
                 let delta_x = match evt.delta() {
@@ -191,20 +222,26 @@ pub fn Canvas() -> Element {
 
             onmousedown: move |evt| {
                 let coords = evt.element_coordinates();
-                match evt.trigger_button() {
-                    Some(MouseButton::Auxiliary) => {
-                        is_panning.set(true);
-                        pan_start.set((coords.x, coords.y));
-                        pan_start_offset.set((*pan_x.read(), *pan_y.read()));
-                    }
-                    Some(MouseButton::Primary) => {
+                let btn = evt.trigger_button();
+                let mut start_pan = || {
+                    is_panning.set(true);
+                    pan_start.set((coords.x, coords.y));
+                    pan_start_offset.set((*pan_x.read(), *pan_y.read()));
+                };
+                if btn == Some(MouseButton::Auxiliary) {
+                    // Middle-click always pans
+                    start_pan();
+                } else if btn == Some(MouseButton::Primary) {
+                    if *space_held.read() {
+                        // Space + left-click = pan (Figma hand tool)
+                        start_pan();
+                    } else {
                         is_painting.set(true);
                         let (col, row) = viewport_to_cell(
                             coords.x, coords.y, *pan_x.read(), *pan_y.read(), *zoom.read(),
                         );
                         app_state.with_mut(|s| apply_tool(s, col, row));
                     }
-                    _ => {}
                 }
             },
 
