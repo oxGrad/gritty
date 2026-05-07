@@ -65,6 +65,42 @@ pub fn LeftPanel() -> Element {
             div { class: "border-t border-[#403e41]" }
 
             div { class: "flex flex-col gap-1",
+                span { class: "text-[11px] text-[#9ca0a4] tracking-widest uppercase", "Shift" }
+                button {
+                    class: "w-full h-8 rounded text-sm bg-[#403e41] text-[#fcfcfa] hover:bg-[#5b595c]",
+                    title: "Shift up",
+                    aria_label: "Shift up",
+                    onclick: move |_| app_state.with_mut(|s| s.project.shift_up()),
+                    "↑"
+                }
+                div { class: "flex gap-0.5",
+                    button {
+                        class: "flex-1 h-8 rounded text-sm bg-[#403e41] text-[#fcfcfa] hover:bg-[#5b595c]",
+                        title: "Shift left",
+                        aria_label: "Shift left",
+                        onclick: move |_| app_state.with_mut(|s| s.project.shift_left()),
+                        "←"
+                    }
+                    button {
+                        class: "flex-1 h-8 rounded text-sm bg-[#403e41] text-[#fcfcfa] hover:bg-[#5b595c]",
+                        title: "Shift right",
+                        aria_label: "Shift right",
+                        onclick: move |_| app_state.with_mut(|s| s.project.shift_right()),
+                        "→"
+                    }
+                }
+                button {
+                    class: "w-full h-8 rounded text-sm bg-[#403e41] text-[#fcfcfa] hover:bg-[#5b595c]",
+                    title: "Shift down",
+                    aria_label: "Shift down",
+                    onclick: move |_| app_state.with_mut(|s| s.project.shift_down()),
+                    "↓"
+                }
+            }
+
+            div { class: "border-t border-[#403e41]" }
+
+            div { class: "flex flex-col gap-1",
                 span { class: "text-[11px] text-[#9ca0a4] tracking-widest uppercase", "Glyph" }
                 for (label, glyphs) in GLYPH_GROUPS.iter() {
                     div { class: "flex flex-col gap-0.5",
