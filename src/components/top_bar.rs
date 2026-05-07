@@ -46,14 +46,15 @@ pub fn TopBar() -> Element {
 
     rsx! {
         div {
-            class: "h-12 bg-[#221f22] border-b border-[#403e41] flex items-center px-3 gap-4 shrink-0",
+            class: "fixed top-0 left-0 right-0 h-12 bg-[#252525]/95 border-b border-[#333333] flex items-center px-4 gap-3 z-20",
 
-            span { class: "text-base font-bold tracking-widest text-[#fcfcfa]", "GRITTY" }
-            span { class: "text-sm text-[#9ca0a4] font-mono", "{w}×{h}" }
+            span { class: "text-sm font-bold tracking-widest text-[#ff6188]", "GRITTY" }
+            span { class: "text-xs text-[#444444] font-mono", "{w}×{h}" }
+
             div { class: "flex-1" }
 
             label {
-                class: "text-sm bg-[#403e41] hover:bg-[#5b595c] text-[#a9dc76] px-3 py-1.5 rounded cursor-pointer",
+                class: "text-xs bg-[#2e2e2e] hover:bg-[#383838] text-[#a9dc76] px-3 py-1.5 rounded-lg cursor-pointer border border-[#3c3c3c]",
                 r#for: "file-import",
                 "Import"
             }
@@ -94,7 +95,7 @@ pub fn TopBar() -> Element {
             }
 
             button {
-                class: "text-sm bg-[#ff6188] hover:bg-[#e05078] text-[#2d2a2e] font-bold px-3 py-1.5 rounded",
+                class: "text-xs bg-[#ff6188] hover:bg-[#e05078] text-[#1a1a1a] font-bold px-3 py-1.5 rounded-lg",
                 onclick: move |_| export_open.set(true),
                 "Export"
             }
@@ -102,7 +103,7 @@ pub fn TopBar() -> Element {
             if *export_open.read() {
                 div {
                     class: "fixed inset-0 flex items-center justify-center z-50",
-                    style: "background: rgba(0,0,0,0.6);",
+                    style: "background: rgba(0,0,0,0.7);",
                     onclick: move |_| export_open.set(false),
                     div {
                         id: "export-dialog",
@@ -110,7 +111,7 @@ pub fn TopBar() -> Element {
                         aria_modal: "true",
                         aria_label: "Export",
                         tabindex: "-1",
-                        class: "bg-[#2d2a2e] border border-[#403e41] rounded-lg w-[560px] max-h-[80vh] flex flex-col overflow-hidden focus:outline-none",
+                        class: "bg-[#252525] border border-[#3c3c3c] rounded-2xl w-[560px] max-h-[80vh] flex flex-col overflow-hidden focus:outline-none shadow-2xl",
                         onclick: move |evt| evt.stop_propagation(),
                         onkeydown: move |evt| {
                             if evt.key() == Key::Escape {
@@ -118,13 +119,13 @@ pub fn TopBar() -> Element {
                             }
                         },
 
-                        div { class: "flex items-center border-b border-[#403e41]",
+                        div { class: "flex items-center border-b border-[#333333]",
                             for (i, label) in ["ANSI", "Plain+ANSI", "JSON"].iter().enumerate() {
                                 button {
                                     class: if *export_tab.read() == i {
-                                        "px-4 py-2 text-sm font-bold text-[#ff6188] border-b-2 border-[#ff6188]"
+                                        "px-4 py-2.5 text-sm font-bold text-[#ff6188] border-b-2 border-[#ff6188]"
                                     } else {
-                                        "px-4 py-2 text-sm text-[#9ca0a4] hover:text-[#fcfcfa]"
+                                        "px-4 py-2.5 text-sm text-[#5b595c] hover:text-[#fcfcfa]"
                                     },
                                     onclick: move |_| export_tab.set(i),
                                     "{label}"
@@ -132,7 +133,7 @@ pub fn TopBar() -> Element {
                             }
                             div { class: "flex-1" }
                             button {
-                                class: "px-3 py-2 text-[#9ca0a4] hover:text-[#fcfcfa] text-base",
+                                class: "px-3 py-2 text-[#5b595c] hover:text-[#fcfcfa] text-base",
                                 aria_label: "Close export dialog",
                                 onclick: move |_| export_open.set(false),
                                 "✕"
@@ -140,22 +141,22 @@ pub fn TopBar() -> Element {
                         }
 
                         if *export_tab.read() < 2 {
-                            div { class: "flex items-center gap-2 px-4 py-2 border-b border-[#403e41]",
-                                span { class: "text-sm text-[#9ca0a4]", "Scope:" }
+                            div { class: "flex items-center gap-2 px-4 py-2 border-b border-[#333333]",
+                                span { class: "text-xs text-[#5b595c]", "Scope:" }
                                 button {
                                     class: if !*all_frames.read() {
-                                        "text-sm px-2 py-1 rounded bg-[#ff6188] text-[#2d2a2e] font-bold"
+                                        "text-xs px-2 py-1 rounded-lg bg-[#ff6188] text-[#1a1a1a] font-bold"
                                     } else {
-                                        "text-sm px-2 py-1 rounded bg-[#403e41] text-[#fcfcfa]"
+                                        "text-xs px-2 py-1 rounded-lg bg-[#2e2e2e] text-[#fcfcfa] hover:bg-[#383838]"
                                     },
                                     onclick: move |_| all_frames.set(false),
                                     "Current frame"
                                 }
                                 button {
                                     class: if *all_frames.read() {
-                                        "text-sm px-2 py-1 rounded bg-[#ff6188] text-[#2d2a2e] font-bold"
+                                        "text-xs px-2 py-1 rounded-lg bg-[#ff6188] text-[#1a1a1a] font-bold"
                                     } else {
-                                        "text-sm px-2 py-1 rounded bg-[#403e41] text-[#fcfcfa]"
+                                        "text-xs px-2 py-1 rounded-lg bg-[#2e2e2e] text-[#fcfcfa] hover:bg-[#383838]"
                                     },
                                     onclick: move |_| all_frames.set(true),
                                     "All frames"
@@ -166,17 +167,17 @@ pub fn TopBar() -> Element {
                         if *export_tab.read() < 2 {
                             div { class: "flex flex-col flex-1 overflow-hidden p-3 gap-2",
                                 pre {
-                                    class: "flex-1 overflow-auto text-sm font-mono text-[#fcfcfa] bg-[#19181a] p-3 rounded border border-[#403e41] whitespace-pre",
+                                    class: "flex-1 overflow-auto text-sm font-mono text-[#fcfcfa] bg-[#1a1a1a] p-3 rounded-xl border border-[#333333] whitespace-pre",
                                     "{export_text}"
                                 }
                                 button {
-                                    class: "self-end text-sm bg-[#403e41] hover:bg-[#5b595c] text-[#78dce8] px-3 py-1.5 rounded",
+                                    class: "self-end text-xs bg-[#2e2e2e] hover:bg-[#383838] text-[#78dce8] px-3 py-1.5 rounded-lg border border-[#3c3c3c]",
                                     onclick: {
                                         let text = export_text.clone();
                                         move |_| {
                                             if let Some(window) = web_sys::window() {
-                                            let _ = window.navigator().clipboard().write_text(&text);
-                                        }
+                                                let _ = window.navigator().clipboard().write_text(&text);
+                                            }
                                         }
                                     },
                                     "Copy"
@@ -184,9 +185,9 @@ pub fn TopBar() -> Element {
                             }
                         } else {
                             div { class: "flex flex-col items-center justify-center flex-1 gap-4 p-6",
-                                p { class: "text-base text-[#9ca0a4]", "Downloads the full project (all frames) as .json" }
+                                p { class: "text-sm text-[#5b595c]", "Downloads the full project (all frames) as .json" }
                                 button {
-                                    class: "bg-[#ff6188] text-[#2d2a2e] font-bold text-sm px-6 py-2 rounded hover:bg-[#e05078]",
+                                    class: "bg-[#ff6188] text-[#1a1a1a] font-bold text-sm px-6 py-2 rounded-lg hover:bg-[#e05078]",
                                     onclick: move |_| {
                                         let json = export_json(&app_state.read().project);
                                         download_string(&json, "gritty-project.json", "application/json");

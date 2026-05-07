@@ -12,9 +12,7 @@ const WHEEL_SIZE: u32 = 120;
 const RING_W: f64 = 16.0;
 
 thread_local! {
-    // Cached ring pixels keyed by (hue, device_pixel_ratio).
-    // Only the ring region is filled; the SV square area stays zeroed.
-    static RING_CACHE: RefCell<Option<(f64, f64, Vec<u8>)>> = RefCell::new(None);
+    static RING_CACHE: RefCell<Option<(f64, f64, Vec<u8>)>> = const { RefCell::new(None) };
 }
 
 fn get_wheel_ctx() -> Option<(HtmlCanvasElement, CanvasRenderingContext2d)> {
@@ -44,7 +42,6 @@ fn draw_wheel(hue: f64, sat: f64, val: f64) {
     let inner_r = outer_r - RING_W * dpr;
     let sq_half = inner_r * 0.68;
 
-    // Get ring pixels from cache (keyed by hue + dpr), or recompute on miss.
     let mut pixels = RING_CACHE.with(|cache| {
         let mut c = cache.borrow_mut();
         if let Some((cached_hue, cached_dpr, ref px)) = *c {
@@ -75,7 +72,6 @@ fn draw_wheel(hue: f64, sat: f64, val: f64) {
         result
     });
 
-    // Fill the SV square into the working copy — ring pixels are untouched.
     for row in 0..phys {
         for col in 0..phys {
             let x = col as f64 - cx;
@@ -97,7 +93,6 @@ fn draw_wheel(hue: f64, sat: f64, val: f64) {
         let _ = ctx.put_image_data(&image_data, 0.0, 0.0);
     }
 
-    // Indicator circles in physical pixel space (no ctx.scale, coords match phys dimensions).
     let hue_rad = hue.to_radians();
     let ind_r = (inner_r + outer_r) / 2.0;
     let ix = cx + ind_r * hue_rad.cos();
@@ -120,6 +115,19 @@ fn draw_wheel(hue: f64, sat: f64, val: f64) {
 pub fn RightPanel() -> Element {
     let mut app_state = use_context::<Signal<AppState>>();
 
+    let show = app_state.read().show_right_panel;
+
+    if !show {
+        return rsx! {
+            button {
+                class: "fixed right-0 top-1/2 -translate-y-1/2 w-5 h-14 bg-[#252525] border border-r-0 border-[#3c3c3c] rounded-l-lg text-[#9ca0a4] hover:text-[#fcfcfa] hover:bg-[#303030] text-xs z-20 flex items-center justify-center",
+                title: "Show color panel",
+                onclick: move |_| app_state.with_mut(|s| s.show_right_panel = true),
+                "◂"
+            }
+        };
+    }
+
     use_effect(move || {
         let state = app_state.read();
         let active_color = match state.color_target {
@@ -141,9 +149,9 @@ pub fn RightPanel() -> Element {
 
     rsx! {
         div {
-            class: "flex flex-col items-center gap-2 p-2 bg-[#221f22] border-l border-[#403e41] w-[148px] overflow-y-auto",
+            class: "fixed right-3 top-14 bottom-16 w-[152px] bg-[#252525] border border-[#3c3c3c] rounded-xl shadow-2xl flex flex-col items-center gap-2 p-2 overflow-y-auto z-10",
 
-            span { class: "text-[11px] text-[#9ca0a4] tracking-widest uppercase self-start", "Color" }
+            span { class: "text-[10px] text-[#5b595c] tracking-widest uppercase self-start", "Color" }
 
             canvas {
                 id: WHEEL_ID,
@@ -190,7 +198,7 @@ pub fn RightPanel() -> Element {
                 value: "{hex_value}",
                 maxlength: 7,
                 aria_label: "Color hex value",
-                class: "w-full bg-[#403e41] text-[#fcfcfa] text-sm text-center rounded px-1 py-1 font-mono border border-[#5b595c] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#ff6188]",
+                class: "w-full bg-[#2e2e2e] text-[#fcfcfa] text-sm text-center rounded-lg px-1 py-1 font-mono border border-[#3c3c3c] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#ff6188]",
                 onchange: move |evt| {
                     if let Some(rgb) = parse_hex(&evt.value()) {
                         app_state.with_mut(|s| {
@@ -204,13 +212,13 @@ pub fn RightPanel() -> Element {
             }
 
             div { class: "flex flex-col gap-1 w-full",
-                span { class: "text-[11px] text-[#9ca0a4] tracking-widest uppercase", "FG / BG" }
+                span { class: "text-[10px] text-[#5b595c] tracking-widest uppercase", "FG / BG" }
                 div { class: "flex gap-1",
                     button {
                         class: if matches!(color_target, ColorTarget::Fg) {
-                            "flex-1 h-8 rounded border-2 border-[#ffd866]"
+                            "flex-1 h-8 rounded-lg border-2 border-[#ffd866]"
                         } else {
-                            "flex-1 h-8 rounded border-2 border-transparent hover:border-[#5b595c]"
+                            "flex-1 h-8 rounded-lg border-2 border-transparent hover:border-[#3c3c3c]"
                         },
                         style: "background-color: {fg_hex};",
                         onclick: move |_| app_state.with_mut(|s| s.color_target = ColorTarget::Fg),
@@ -219,15 +227,25 @@ pub fn RightPanel() -> Element {
                     }
                     button {
                         class: if matches!(color_target, ColorTarget::Bg) {
-                            "flex-1 h-8 rounded border-2 border-[#ffd866]"
+                            "flex-1 h-8 rounded-lg border-2 border-[#ffd866]"
                         } else {
-                            "flex-1 h-8 rounded border-2 border-transparent hover:border-[#5b595c]"
+                            "flex-1 h-8 rounded-lg border-2 border-transparent hover:border-[#3c3c3c]"
                         },
                         style: "background-color: {bg_hex};",
                         onclick: move |_| app_state.with_mut(|s| s.color_target = ColorTarget::Bg),
                         aria_label: "Background color",
                         aria_pressed: if matches!(color_target, ColorTarget::Bg) { "true" } else { "false" },
                     }
+                }
+            }
+
+            // Collapse button
+            div { class: "mt-auto pt-2 border-t border-[#333333] w-full",
+                button {
+                    class: "w-full h-7 rounded-lg text-[#5b595c] hover:text-[#9ca0a4] hover:bg-[#2e2e2e] text-xs",
+                    title: "Hide color panel",
+                    onclick: move |_| app_state.with_mut(|s| s.show_right_panel = false),
+                    "hide ▸"
                 }
             }
         }

@@ -27,14 +27,11 @@ fn App() -> Element {
     rsx! {
         document::Stylesheet { href: asset!("/assets/tailwind.css") }
         div {
-            class: "flex flex-col h-screen bg-[#2d2a2e] text-[#fcfcfa] select-none",
+            class: "w-screen h-screen overflow-hidden relative select-none",
+            Canvas {}
             TopBar {}
-            div {
-                class: "flex flex-1 overflow-hidden",
-                LeftPanel {}
-                Canvas {}
-                RightPanel {}
-            }
+            LeftPanel {}
+            RightPanel {}
             Timeline {}
         }
     }
