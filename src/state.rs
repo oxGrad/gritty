@@ -155,6 +155,64 @@ impl Project {
             }
         }
     }
+
+    pub fn shift_all_left(&mut self) {
+        let w = self.width as usize;
+        let h = self.height as usize;
+        for frame in &mut self.frames {
+            for r in 0..h {
+                let base = r * w;
+                let first = frame.cells[base].clone();
+                for c in 0..w - 1 {
+                    frame.cells[base + c] = frame.cells[base + c + 1].clone();
+                }
+                frame.cells[base + w - 1] = first;
+            }
+        }
+    }
+
+    pub fn shift_all_right(&mut self) {
+        let w = self.width as usize;
+        let h = self.height as usize;
+        for frame in &mut self.frames {
+            for r in 0..h {
+                let base = r * w;
+                let last = frame.cells[base + w - 1].clone();
+                for c in (0..w - 1).rev() {
+                    frame.cells[base + c + 1] = frame.cells[base + c].clone();
+                }
+                frame.cells[base] = last;
+            }
+        }
+    }
+
+    pub fn shift_all_up(&mut self) {
+        let w = self.width as usize;
+        let h = self.height as usize;
+        for frame in &mut self.frames {
+            for c in 0..w {
+                let first = frame.cells[c].clone();
+                for r in 0..h - 1 {
+                    frame.cells[r * w + c] = frame.cells[(r + 1) * w + c].clone();
+                }
+                frame.cells[(h - 1) * w + c] = first;
+            }
+        }
+    }
+
+    pub fn shift_all_down(&mut self) {
+        let w = self.width as usize;
+        let h = self.height as usize;
+        for frame in &mut self.frames {
+            for c in 0..w {
+                let last = frame.cells[(h - 1) * w + c].clone();
+                for r in (0..h - 1).rev() {
+                    frame.cells[(r + 1) * w + c] = frame.cells[r * w + c].clone();
+                }
+                frame.cells[c] = last;
+            }
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -317,6 +375,56 @@ mod tests {
         p.shift_down();
         assert_eq!(p.frames[0].cells[2].ch, ' ');
         assert_eq!(p.frames[0].cells[0].ch, 'B');
+    }
+
+    #[test]
+    fn shift_all_left_affects_every_frame() {
+        let mut p = Project { width: 3, height: 1, frames: vec![Frame::new(3, 1), Frame::new(3, 1)], active_frame: 0 };
+        p.frames[0].cells[0].ch = 'A';
+        p.frames[1].cells[0].ch = 'B';
+        p.shift_all_left();
+        assert_eq!(p.frames[0].cells[2].ch, 'A');
+        assert_eq!(p.frames[1].cells[2].ch, 'B');
+    }
+
+    #[test]
+    fn shift_all_right_affects_every_frame() {
+        let mut p = Project { width: 3, height: 1, frames: vec![Frame::new(3, 1), Frame::new(3, 1)], active_frame: 0 };
+        p.frames[0].cells[2].ch = 'X';
+        p.frames[1].cells[2].ch = 'Y';
+        p.shift_all_right();
+        assert_eq!(p.frames[0].cells[0].ch, 'X');
+        assert_eq!(p.frames[1].cells[0].ch, 'Y');
+    }
+
+    #[test]
+    fn shift_all_up_affects_every_frame() {
+        let mut p = Project { width: 1, height: 3, frames: vec![Frame::new(1, 3), Frame::new(1, 3)], active_frame: 0 };
+        p.frames[0].cells[0].ch = 'P';
+        p.frames[1].cells[0].ch = 'Q';
+        p.shift_all_up();
+        assert_eq!(p.frames[0].cells[2].ch, 'P');
+        assert_eq!(p.frames[1].cells[2].ch, 'Q');
+    }
+
+    #[test]
+    fn shift_all_down_affects_every_frame() {
+        let mut p = Project { width: 1, height: 3, frames: vec![Frame::new(1, 3), Frame::new(1, 3)], active_frame: 0 };
+        p.frames[0].cells[2].ch = 'M';
+        p.frames[1].cells[2].ch = 'N';
+        p.shift_all_down();
+        assert_eq!(p.frames[0].cells[0].ch, 'M');
+        assert_eq!(p.frames[1].cells[0].ch, 'N');
+    }
+
+    #[test]
+    fn shift_all_does_not_affect_only_active_frame() {
+        let mut p = Project { width: 3, height: 1, frames: vec![Frame::new(3, 1), Frame::new(3, 1)], active_frame: 0 };
+        p.frames[0].cells[0].ch = 'A';
+        p.frames[1].cells[0].ch = 'B';
+        p.shift_left(); // only active frame
+        assert_eq!(p.frames[0].cells[2].ch, 'A');
+        assert_eq!(p.frames[1].cells[0].ch, 'B'); // unchanged
     }
 
     #[test]

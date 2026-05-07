@@ -66,34 +66,68 @@ pub fn LeftPanel() -> Element {
 
             div { class: "flex flex-col gap-1",
                 span { class: "text-[11px] text-[#9ca0a4] tracking-widest uppercase", "Shift" }
+
+                span { class: "text-[10px] text-[#5b595c]", "Frame" }
                 button {
                     class: "w-full h-8 rounded text-sm bg-[#403e41] text-[#fcfcfa] hover:bg-[#5b595c]",
-                    title: "Shift up",
-                    aria_label: "Shift up",
+                    title: "Shift frame up",
+                    aria_label: "Shift frame up",
                     onclick: move |_| app_state.with_mut(|s| s.project.shift_up()),
                     "↑"
                 }
                 div { class: "flex gap-0.5",
                     button {
                         class: "flex-1 h-8 rounded text-sm bg-[#403e41] text-[#fcfcfa] hover:bg-[#5b595c]",
-                        title: "Shift left",
-                        aria_label: "Shift left",
+                        title: "Shift frame left",
+                        aria_label: "Shift frame left",
                         onclick: move |_| app_state.with_mut(|s| s.project.shift_left()),
                         "←"
                     }
                     button {
                         class: "flex-1 h-8 rounded text-sm bg-[#403e41] text-[#fcfcfa] hover:bg-[#5b595c]",
-                        title: "Shift right",
-                        aria_label: "Shift right",
+                        title: "Shift frame right",
+                        aria_label: "Shift frame right",
                         onclick: move |_| app_state.with_mut(|s| s.project.shift_right()),
                         "→"
                     }
                 }
                 button {
                     class: "w-full h-8 rounded text-sm bg-[#403e41] text-[#fcfcfa] hover:bg-[#5b595c]",
-                    title: "Shift down",
-                    aria_label: "Shift down",
+                    title: "Shift frame down",
+                    aria_label: "Shift frame down",
                     onclick: move |_| app_state.with_mut(|s| s.project.shift_down()),
+                    "↓"
+                }
+
+                span { class: "text-[10px] text-[#5b595c]", "All" }
+                button {
+                    class: "w-full h-8 rounded text-sm bg-[#403e41] text-[#fcfcfa] hover:bg-[#5b595c]",
+                    title: "Shift all frames up",
+                    aria_label: "Shift all frames up",
+                    onclick: move |_| app_state.with_mut(|s| s.project.shift_all_up()),
+                    "↑"
+                }
+                div { class: "flex gap-0.5",
+                    button {
+                        class: "flex-1 h-8 rounded text-sm bg-[#403e41] text-[#fcfcfa] hover:bg-[#5b595c]",
+                        title: "Shift all frames left",
+                        aria_label: "Shift all frames left",
+                        onclick: move |_| app_state.with_mut(|s| s.project.shift_all_left()),
+                        "←"
+                    }
+                    button {
+                        class: "flex-1 h-8 rounded text-sm bg-[#403e41] text-[#fcfcfa] hover:bg-[#5b595c]",
+                        title: "Shift all frames right",
+                        aria_label: "Shift all frames right",
+                        onclick: move |_| app_state.with_mut(|s| s.project.shift_all_right()),
+                        "→"
+                    }
+                }
+                button {
+                    class: "w-full h-8 rounded text-sm bg-[#403e41] text-[#fcfcfa] hover:bg-[#5b595c]",
+                    title: "Shift all frames down",
+                    aria_label: "Shift all frames down",
+                    onclick: move |_| app_state.with_mut(|s| s.project.shift_all_down()),
                     "↓"
                 }
             }
