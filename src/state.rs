@@ -249,6 +249,8 @@ pub struct AppState {
     pub color_target: ColorTarget,
     pub playback: PlaybackState,
     pub show_grid: bool,
+    pub show_left_panel: bool,
+    pub show_right_panel: bool,
 }
 
 impl Default for AppState {
@@ -262,6 +264,8 @@ impl Default for AppState {
             color_target: ColorTarget::Fg,
             playback: PlaybackState::default(),
             show_grid: false,
+            show_left_panel: true,
+            show_right_panel: true,
         }
     }
 }

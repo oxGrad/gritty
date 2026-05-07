@@ -7,7 +7,6 @@ use wasm_bindgen::JsCast;
 use crate::state::AppState;
 
 thread_local! {
-    // Owns the interval callback so it stays alive without forget().
     static INTERVAL_CB: RefCell<Option<Closure<dyn FnMut()>>> = RefCell::new(None);
 }
 
@@ -23,16 +22,16 @@ pub fn Timeline() -> Element {
 
     rsx! {
         div {
-            class: "h-14 bg-[#221f22] border-t border-[#403e41] flex items-center px-3 gap-2 shrink-0 overflow-x-auto",
+            class: "fixed bottom-0 left-0 right-0 h-14 bg-[#252525]/95 border-t border-[#333333] flex items-center px-3 gap-2 z-20",
 
-            span { class: "text-[11px] text-[#9ca0a4] tracking-widest uppercase shrink-0", "FRAMES" }
+            span { class: "text-[10px] text-[#444444] tracking-widest uppercase shrink-0", "FRAMES" }
 
             for i in 0..frame_count {
                 button {
                     class: if i == active_frame {
-                        "w-9 h-9 rounded text-sm font-bold bg-[#ff6188] text-[#2d2a2e] shrink-0"
+                        "w-9 h-9 rounded-lg text-sm font-bold bg-[#ff6188] text-[#1a1a1a] shrink-0"
                     } else {
-                        "w-9 h-9 rounded text-sm bg-[#403e41] text-[#9ca0a4] hover:bg-[#5b595c] shrink-0"
+                        "w-9 h-9 rounded-lg text-sm bg-[#2e2e2e] text-[#9ca0a4] hover:bg-[#383838] shrink-0 border border-[#3c3c3c]"
                     },
                     aria_label: "Frame {i + 1}",
                     aria_pressed: if i == active_frame { "true" } else { "false" },
@@ -43,7 +42,7 @@ pub fn Timeline() -> Element {
 
             div { class: "flex gap-1 shrink-0",
                 button {
-                    class: "w-8 h-8 rounded bg-[#403e41] text-[#a9dc76] hover:bg-[#5b595c] text-base font-bold",
+                    class: "w-8 h-8 rounded-lg bg-[#2e2e2e] text-[#a9dc76] hover:bg-[#383838] text-base font-bold border border-[#3c3c3c]",
                     title: "Add frame",
                     aria_label: "Add frame",
                     onclick: move |_| app_state.with_mut(|s| {
@@ -53,7 +52,7 @@ pub fn Timeline() -> Element {
                     "+"
                 }
                 button {
-                    class: "w-8 h-8 rounded bg-[#403e41] text-[#78dce8] hover:bg-[#5b595c] text-sm",
+                    class: "w-8 h-8 rounded-lg bg-[#2e2e2e] text-[#78dce8] hover:bg-[#383838] text-sm border border-[#3c3c3c]",
                     title: "Duplicate frame",
                     aria_label: "Duplicate frame",
                     onclick: move |_| app_state.with_mut(|s| {
@@ -64,7 +63,7 @@ pub fn Timeline() -> Element {
                     "⧉"
                 }
                 button {
-                    class: "w-8 h-8 rounded bg-[#403e41] text-[#fcfcfa] hover:bg-[#5b595c] text-sm",
+                    class: "w-8 h-8 rounded-lg bg-[#2e2e2e] text-[#9ca0a4] hover:bg-[#383838] text-sm border border-[#3c3c3c]",
                     title: "Move frame left",
                     aria_label: "Move frame left",
                     onclick: move |_| app_state.with_mut(|s| {
@@ -74,7 +73,7 @@ pub fn Timeline() -> Element {
                     "←"
                 }
                 button {
-                    class: "w-8 h-8 rounded bg-[#403e41] text-[#fcfcfa] hover:bg-[#5b595c] text-sm",
+                    class: "w-8 h-8 rounded-lg bg-[#2e2e2e] text-[#9ca0a4] hover:bg-[#383838] text-sm border border-[#3c3c3c]",
                     title: "Move frame right",
                     aria_label: "Move frame right",
                     onclick: move |_| app_state.with_mut(|s| {
@@ -84,7 +83,7 @@ pub fn Timeline() -> Element {
                     "→"
                 }
                 button {
-                    class: "w-8 h-8 rounded bg-[#403e41] text-[#ff6188] hover:bg-[#5b595c] text-sm font-bold",
+                    class: "w-8 h-8 rounded-lg bg-[#2e2e2e] text-[#ff6188] hover:bg-[#383838] text-sm font-bold border border-[#3c3c3c]",
                     title: "Delete frame",
                     aria_label: "Delete current frame",
                     onclick: move |_| app_state.with_mut(|s| {
@@ -104,7 +103,7 @@ pub fn Timeline() -> Element {
                     min: "50",
                     max: "5000",
                     step: "50",
-                    class: "w-16 bg-[#403e41] text-[#fcfcfa] text-sm text-center rounded px-1 py-1 font-mono border border-[#5b595c] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#78dce8]",
+                    class: "w-16 bg-[#2e2e2e] text-[#fcfcfa] text-xs text-center rounded-lg px-1 py-1 font-mono border border-[#3c3c3c] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#78dce8]",
                     title: "Frame delay (ms)",
                     aria_label: "Frame delay in milliseconds",
                     onchange: move |evt| {
@@ -113,13 +112,13 @@ pub fn Timeline() -> Element {
                         }
                     },
                 }
-                span { class: "text-[11px] text-[#9ca0a4]", "ms" }
+                span { class: "text-[10px] text-[#444444]", "ms" }
 
                 button {
                     class: if playing {
-                        "px-3 h-9 rounded bg-[#fc9867] text-[#2d2a2e] text-sm font-bold hover:bg-[#e08856] shrink-0"
+                        "px-3 h-9 rounded-lg bg-[#fc9867] text-[#1a1a1a] text-sm font-bold hover:bg-[#e08856] shrink-0"
                     } else {
-                        "px-3 h-9 rounded bg-[#403e41] text-[#78dce8] text-sm font-bold hover:bg-[#5b595c] shrink-0"
+                        "px-3 h-9 rounded-lg bg-[#2e2e2e] text-[#78dce8] text-sm font-bold hover:bg-[#383838] shrink-0 border border-[#3c3c3c]"
                     },
                     aria_label: if playing { "Stop playback" } else { "Play animation" },
                     onclick: move |_| {
