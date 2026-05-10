@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-pub const CELL_W: f64 = 8.0;
-pub const CELL_H: f64 = 16.0;
+pub const DEFAULT_CELL_SIZE: f64 = 16.0;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Cell {
@@ -12,7 +11,7 @@ pub struct Cell {
 
 impl Default for Cell {
     fn default() -> Self {
-        Cell { fg: [252, 252, 250], bg: [34, 31, 34], ch: ' ' }
+        Cell { fg: [57, 255, 20], bg: [0, 0, 0], ch: ' ' }
     }
 }
 
@@ -23,9 +22,7 @@ pub struct Frame {
 
 impl Frame {
     pub fn new(width: u32, height: u32) -> Self {
-        Frame {
-            cells: vec![Cell::default(); (width * height) as usize],
-        }
+        Frame { cells: vec![Cell::default(); (width * height) as usize] }
     }
 }
 
@@ -54,15 +51,40 @@ impl Project {
         let idx = (row * self.width + col) as usize;
         if let Some(frame) = self.frames.get_mut(self.active_frame) {
             if let Some(cell) = frame.cells.get_mut(idx) {
-                cell.fg = fg;
-                cell.bg = bg;
-                cell.ch = ch;
+                cell.fg = fg; cell.bg = bg; cell.ch = ch;
             }
         }
     }
 
     pub fn erase_cell(&mut self, col: u32, row: u32) {
         self.paint_cell(col, row, Cell::default().fg, Cell::default().bg, ' ');
+    }
+
+    pub fn flood_fill(&mut self, col: u32, row: u32, fg: [u8; 3], bg: [u8; 3], ch: char) {
+        if col >= self.width || row >= self.height { return; }
+        let w = self.width as usize;
+        let h = self.height as usize;
+        let Some(frame) = self.frames.get_mut(self.active_frame) else { return };
+
+        let start_idx = row as usize * w + col as usize;
+        let target = frame.cells[start_idx].clone();
+        if target.ch == ch && target.fg == fg && target.bg == bg { return; }
+
+        let mut stack = vec![(col as usize, row as usize)];
+        let mut visited = vec![false; w * h];
+
+        while let Some((x, y)) = stack.pop() {
+            let idx = y * w + x;
+            if visited[idx] { continue; }
+            let c = &frame.cells[idx];
+            if c.ch != target.ch || c.fg != target.fg || c.bg != target.bg { continue; }
+            visited[idx] = true;
+            frame.cells[idx] = Cell { ch, fg, bg };
+            if x + 1 < w { stack.push((x + 1, y)); }
+            if x > 0   { stack.push((x - 1, y)); }
+            if y + 1 < h { stack.push((x, y + 1)); }
+            if y > 0   { stack.push((x, y - 1)); }
+        }
     }
 
     pub fn add_frame(&mut self) {
@@ -105,9 +127,7 @@ impl Project {
             for r in 0..h {
                 let base = r * w;
                 let first = frame.cells[base].clone();
-                for c in 0..w - 1 {
-                    frame.cells[base + c] = frame.cells[base + c + 1].clone();
-                }
+                for c in 0..w - 1 { frame.cells[base + c] = frame.cells[base + c + 1].clone(); }
                 frame.cells[base + w - 1] = first;
             }
         }
@@ -120,9 +140,7 @@ impl Project {
             for r in 0..h {
                 let base = r * w;
                 let last = frame.cells[base + w - 1].clone();
-                for c in (0..w - 1).rev() {
-                    frame.cells[base + c + 1] = frame.cells[base + c].clone();
-                }
+                for c in (0..w - 1).rev() { frame.cells[base + c + 1] = frame.cells[base + c].clone(); }
                 frame.cells[base] = last;
             }
         }
@@ -134,9 +152,7 @@ impl Project {
         if let Some(frame) = self.frames.get_mut(self.active_frame) {
             for c in 0..w {
                 let first = frame.cells[c].clone();
-                for r in 0..h - 1 {
-                    frame.cells[r * w + c] = frame.cells[(r + 1) * w + c].clone();
-                }
+                for r in 0..h - 1 { frame.cells[r * w + c] = frame.cells[(r + 1) * w + c].clone(); }
                 frame.cells[(h - 1) * w + c] = first;
             }
         }
@@ -148,9 +164,7 @@ impl Project {
         if let Some(frame) = self.frames.get_mut(self.active_frame) {
             for c in 0..w {
                 let last = frame.cells[(h - 1) * w + c].clone();
-                for r in (0..h - 1).rev() {
-                    frame.cells[(r + 1) * w + c] = frame.cells[r * w + c].clone();
-                }
+                for r in (0..h - 1).rev() { frame.cells[(r + 1) * w + c] = frame.cells[r * w + c].clone(); }
                 frame.cells[c] = last;
             }
         }
@@ -163,9 +177,7 @@ impl Project {
             for r in 0..h {
                 let base = r * w;
                 let first = frame.cells[base].clone();
-                for c in 0..w - 1 {
-                    frame.cells[base + c] = frame.cells[base + c + 1].clone();
-                }
+                for c in 0..w - 1 { frame.cells[base + c] = frame.cells[base + c + 1].clone(); }
                 frame.cells[base + w - 1] = first;
             }
         }
@@ -178,9 +190,7 @@ impl Project {
             for r in 0..h {
                 let base = r * w;
                 let last = frame.cells[base + w - 1].clone();
-                for c in (0..w - 1).rev() {
-                    frame.cells[base + c + 1] = frame.cells[base + c].clone();
-                }
+                for c in (0..w - 1).rev() { frame.cells[base + c + 1] = frame.cells[base + c].clone(); }
                 frame.cells[base] = last;
             }
         }
@@ -192,9 +202,7 @@ impl Project {
         for frame in &mut self.frames {
             for c in 0..w {
                 let first = frame.cells[c].clone();
-                for r in 0..h - 1 {
-                    frame.cells[r * w + c] = frame.cells[(r + 1) * w + c].clone();
-                }
+                for r in 0..h - 1 { frame.cells[r * w + c] = frame.cells[(r + 1) * w + c].clone(); }
                 frame.cells[(h - 1) * w + c] = first;
             }
         }
@@ -206,12 +214,29 @@ impl Project {
         for frame in &mut self.frames {
             for c in 0..w {
                 let last = frame.cells[(h - 1) * w + c].clone();
-                for r in (0..h - 1).rev() {
-                    frame.cells[(r + 1) * w + c] = frame.cells[r * w + c].clone();
-                }
+                for r in (0..h - 1).rev() { frame.cells[(r + 1) * w + c] = frame.cells[r * w + c].clone(); }
                 frame.cells[c] = last;
             }
         }
+    }
+
+    pub fn resize(&mut self, new_w: u32, new_h: u32) {
+        let old_w = self.width;
+        let old_h = self.height;
+        let blank = Cell::default();
+        for frame in &mut self.frames {
+            let mut new_cells = vec![blank.clone(); (new_w * new_h) as usize];
+            for row in 0..new_h.min(old_h) {
+                for col in 0..new_w.min(old_w) {
+                    let src = (row * old_w + col) as usize;
+                    let dst = (row * new_w + col) as usize;
+                    new_cells[dst] = frame.cells[src].clone();
+                }
+            }
+            frame.cells = new_cells;
+        }
+        self.width = new_w;
+        self.height = new_h;
     }
 }
 
@@ -219,38 +244,95 @@ impl Project {
 pub enum Tool {
     Brush,
     Eraser,
+    Fill,
+    Eyedrop,
+    Rect,
+    Line,
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub enum ColorTarget {
-    Fg,
-    Bg,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct PlaybackState {
-    pub playing: bool,
-    pub delay_ms: u32,
-}
-
-impl Default for PlaybackState {
-    fn default() -> Self {
-        PlaybackState { playing: false, delay_ms: 100 }
+impl Tool {
+    pub fn label(&self) -> &'static str {
+        match self {
+            Tool::Brush   => "pencil",
+            Tool::Eraser  => "eraser",
+            Tool::Fill    => "fill",
+            Tool::Eyedrop => "eyedrop",
+            Tool::Rect    => "rect",
+            Tool::Line    => "line",
+        }
     }
 }
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum GlyphSet { BlockArt, BoxDrawing, Shading }
+
+impl GlyphSet {
+    pub fn label(&self) -> &'static str {
+        match self {
+            GlyphSet::BlockArt  => "Block Art",
+            GlyphSet::BoxDrawing => "Box Drawing",
+            GlyphSet::Shading   => "Shading",
+        }
+    }
+    pub fn glyphs(&self) -> &'static [char] {
+        match self {
+            GlyphSet::BlockArt  => &GLYPHS_BLOCK,
+            GlyphSet::BoxDrawing => &GLYPHS_BOX,
+            GlyphSet::Shading   => &GLYPHS_SHADING,
+        }
+    }
+}
+
+pub static GLYPHS_BLOCK: [char; 20] = [
+    '█', '▌', '▐', '▀', '▄',
+    '░', '▒', '▓', '■', '□',
+    '▖', '▗', '▘', '▝', '▚',
+    '▙', '▛', '▜', '▟', '▞',
+];
+pub static GLYPHS_BOX: [char; 20] = [
+    '─', '│', '┌', '┐', '└',
+    '┘', '├', '┤', '┬', '┴',
+    '┼', '═', '║', '╔', '╗',
+    '╚', '╝', '╠', '╣', '╦',
+];
+pub static GLYPHS_SHADING: [char; 20] = [
+    ' ', '·', '∙', '•', '●',
+    '░', '▒', '▓', '█', '▪',
+    '◌', '◯', '◐', '◑', '◒',
+    '◓', '◔', '◕', '◖', '◗',
+];
+
+pub const ANSI_16: &[(&str, &str)] = &[
+    ("black",   "#0c0c0c"), ("maroon",  "#aa0000"),
+    ("green",   "#00aa00"), ("olive",   "#aa5500"),
+    ("navy",    "#0000aa"), ("purple",  "#aa00aa"),
+    ("teal",    "#00aaaa"), ("silver",  "#c0c0c0"),
+    ("grey",    "#555555"), ("red",     "#ff5555"),
+    ("lime",    "#55ff55"), ("yellow",  "#ffff55"),
+    ("blue",    "#5555ff"), ("magenta", "#ff55ff"),
+    ("cyan",    "#55ffff"), ("white",   "#ffffff"),
+];
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum ColorTarget { Fg, Bg }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct AppState {
     pub project: Project,
     pub tool: Tool,
     pub active_glyph: char,
+    pub glyph_set: GlyphSet,
     pub fg_color: [u8; 3],
     pub bg_color: [u8; 3],
     pub color_target: ColorTarget,
-    pub playback: PlaybackState,
+    pub fps: u32,
+    pub playing: bool,
+    pub onion_skin: bool,
     pub show_grid: bool,
-    pub show_left_panel: bool,
-    pub show_right_panel: bool,
+    pub cell_size: f64,
+    pub zoom: f64,
+    pub show_scanlines: bool,
+    pub phosphor: bool,
 }
 
 impl Default for AppState {
@@ -259,16 +341,25 @@ impl Default for AppState {
             project: Project::default(),
             tool: Tool::Brush,
             active_glyph: '█',
-            fg_color: [255, 97, 136],
-            bg_color: [34, 31, 34],
+            glyph_set: GlyphSet::BlockArt,
+            fg_color: [57, 255, 20],
+            bg_color: [0, 0, 0],
             color_target: ColorTarget::Fg,
-            playback: PlaybackState::default(),
-            show_grid: false,
-            show_left_panel: true,
-            show_right_panel: true,
+            fps: 10,
+            playing: false,
+            onion_skin: false,
+            show_grid: true,
+            cell_size: DEFAULT_CELL_SIZE,
+            zoom: 2.0,
+            show_scanlines: true,
+            phosphor: true,
         }
     }
 }
+
+// Kept for tests
+pub const CELL_W: f64 = DEFAULT_CELL_SIZE;
+pub const CELL_H: f64 = DEFAULT_CELL_SIZE;
 
 pub const GLYPH_GROUPS: &[(&str, &[char])] = &[
     ("Full",   &['█']),
@@ -426,9 +517,9 @@ mod tests {
         let mut p = Project { width: 3, height: 1, frames: vec![Frame::new(3, 1), Frame::new(3, 1)], active_frame: 0 };
         p.frames[0].cells[0].ch = 'A';
         p.frames[1].cells[0].ch = 'B';
-        p.shift_left(); // only active frame
+        p.shift_left();
         assert_eq!(p.frames[0].cells[2].ch, 'A');
-        assert_eq!(p.frames[1].cells[0].ch, 'B'); // unchanged
+        assert_eq!(p.frames[1].cells[0].ch, 'B');
     }
 
     #[test]
@@ -441,5 +532,27 @@ mod tests {
         p.move_frame_down(0);
         assert_eq!(p.frames[1].cells[0].ch, ch_before);
         assert_eq!(p.active_frame, 1);
+    }
+
+    #[test]
+    fn flood_fill_replaces_connected_region() {
+        let mut p = Project { width: 3, height: 1, frames: vec![Frame::new(3, 1)], active_frame: 0 };
+        p.frames[0].cells[0].ch = 'A';
+        p.frames[0].cells[1].ch = 'A';
+        p.frames[0].cells[2].ch = 'B';
+        p.flood_fill(0, 0, [255, 0, 0], [0, 0, 0], '█');
+        assert_eq!(p.frames[0].cells[0].ch, '█');
+        assert_eq!(p.frames[0].cells[1].ch, '█');
+        assert_eq!(p.frames[0].cells[2].ch, 'B');
+    }
+
+    #[test]
+    fn resize_grows_canvas() {
+        let mut p = Project::default();
+        p.paint_cell(0, 0, [255, 0, 0], [0, 0, 0], '█');
+        p.resize(50, 25);
+        assert_eq!(p.width, 50);
+        assert_eq!(p.height, 25);
+        assert_eq!(p.frames[0].cells[0].ch, '█');
     }
 }

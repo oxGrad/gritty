@@ -1,5 +1,5 @@
-use dioxus::prelude::*;
 use js_sys::Array;
+use dioxus::prelude::*;
 use wasm_bindgen::JsCast;
 use web_sys::{Blob, BlobPropertyBag, HtmlAnchorElement, HtmlInputElement, Url};
 
@@ -9,27 +9,23 @@ use crate::state::AppState;
 
 #[component]
 pub fn TopBar() -> Element {
-    let app_state = use_context::<Signal<AppState>>();
+    let mut app_state = use_context::<Signal<AppState>>();
     let mut export_open = use_signal(|| false);
     let mut export_tab = use_signal(|| 0usize);
     let mut all_frames = use_signal(|| false);
 
-    use_effect(move || {
-        if *export_open.read() {
-            if let Some(doc) = web_sys::window().and_then(|w| w.document()) {
-                if let Some(el) = doc.get_element_by_id("export-dialog") {
-                    if let Ok(html_el) = el.dyn_into::<web_sys::HtmlElement>() {
-                        let _ = html_el.focus();
-                    }
-                }
-            }
-        }
-    });
-
-    let (w, h) = {
+    let (w, h, frame_count, active_idx, fps, playing, zoom) = {
         let s = app_state.read();
-        (s.project.width, s.project.height)
+        (
+            s.project.width, s.project.height,
+            s.project.frames.len(), s.project.active_frame,
+            s.fps, s.playing, s.zoom,
+        )
     };
+
+    let accent_css = "#39ff14";
+
+    let zoom_pct = (zoom * 100.0).round() as i32;
 
     let export_text = {
         let s = app_state.read();
@@ -45,155 +41,242 @@ pub fn TopBar() -> Element {
     };
 
     rsx! {
-        div {
-            class: "fixed top-0 left-0 right-0 h-12 bg-[#252525]/95 border-b border-[#333333] flex items-center px-4 gap-3 z-20",
-
-            span { class: "text-sm font-bold tracking-widest text-[#ff6188]", "GRITTY" }
-            span { class: "text-xs text-[#444444] font-mono", "{w}×{h}" }
-
-            div { class: "flex-1" }
-
-            label {
-                class: "text-xs bg-[#2e2e2e] hover:bg-[#383838] text-[#a9dc76] px-3 py-1.5 rounded-lg cursor-pointer border border-[#3c3c3c]",
-                r#for: "file-import",
-                "Import"
+        header { class: "toolbar",
+            // Left: wordmark + file info
+            div { class: "toolbar-left",
+                div { class: "wordmark",
+                    span { class: "wordmark-bracket", style: "color: {accent_css}", "▮" }
+                    span { class: "wordmark-name", "Gritty" }
+                    span { class: "wordmark-cursor", style: "background: {accent_css}" }
+                }
+                span { class: "dot" }
+                button { class: "tb-btn ghost", "⊞ Untitled.ans" }
+                span { class: "dot" }
+                span { class: "tb-meta mono",
+                    "{w}"
+                    span { class: "mute", "×" }
+                    "{h} cells"
+                }
             }
-            input {
-                id: "file-import",
-                r#type: "file",
-                accept: ".json,.ans,.txt",
-                class: "hidden",
-                onchange: move |_| {
-                    let document = web_sys::window().unwrap().document().unwrap();
-                    let input = document.get_element_by_id("file-import").unwrap()
-                        .dyn_into::<HtmlInputElement>().unwrap();
-                    if let Some(files) = input.files() {
-                        if let Some(file) = files.item(0) {
-                            let name = file.name();
-                            let is_json = name.ends_with(".json");
-                            let w = app_state.read().project.width;
-                            let h = app_state.read().project.height;
-                            let text_promise = file.text();
-                            let mut state_ref = app_state;
-                            wasm_bindgen_futures::spawn_local(async move {
-                                if let Ok(text_js) = wasm_bindgen_futures::JsFuture::from(text_promise).await {
-                                    if let Some(text) = text_js.as_string() {
-                                        if is_json {
-                                            if let Ok(project) = import_json(&text) {
-                                                state_ref.with_mut(|s| s.project = project);
-                                            }
-                                        } else {
-                                            let project = import_ansi(&text, w, h);
-                                            state_ref.with_mut(|s| s.project = project);
-                                        }
-                                    }
-                                }
-                            });
-                        }
+
+            // Center: playback
+            div { class: "toolbar-center",
+                div { class: "playback",
+                    button {
+                        class: "tb-btn icon",
+                        title: "First frame",
+                        onclick: move |_| app_state.with_mut(|s| s.project.active_frame = 0),
+                        "⏮"
                     }
-                },
-            }
+                    button {
+                        class: "tb-btn icon",
+                        title: "Previous frame ([)",
+                        onclick: move |_| app_state.with_mut(|s| {
+                            if s.project.active_frame > 0 { s.project.active_frame -= 1; }
+                        }),
+                        "◀"
+                    }
+                    button {
+                        class: "tb-btn icon play",
+                        title: "Play / Pause (Space)",
+                        "data-active": if playing { "1" } else { "0" },
+                        onclick: move |_| app_state.with_mut(|s| s.playing = !s.playing),
+                        if playing { "⏸" } else { "▶" }
+                    }
+                    button {
+                        class: "tb-btn icon",
+                        title: "Next frame (])",
+                        onclick: move |_| app_state.with_mut(|s| {
+                            let n = s.project.frames.len();
+                            if s.project.active_frame + 1 < n { s.project.active_frame += 1; }
+                        }),
+                        "▶"
+                    }
+                    button {
+                        class: "tb-btn icon",
+                        title: "Last frame",
+                        onclick: move |_| app_state.with_mut(|s| {
+                            s.project.active_frame = s.project.frames.len() - 1;
+                        }),
+                        "⏭"
+                    }
+                }
 
-            button {
-                class: "text-xs bg-[#ff6188] hover:bg-[#e05078] text-[#1a1a1a] font-bold px-3 py-1.5 rounded-lg",
-                onclick: move |_| export_open.set(true),
-                "Export"
-            }
-
-            if *export_open.read() {
-                div {
-                    class: "fixed inset-0 flex items-center justify-center z-50",
-                    style: "background: rgba(0,0,0,0.7);",
-                    onclick: move |_| export_open.set(false),
-                    div {
-                        id: "export-dialog",
-                        role: "dialog",
-                        aria_modal: "true",
-                        aria_label: "Export",
-                        tabindex: "-1",
-                        class: "bg-[#252525] border border-[#3c3c3c] rounded-2xl w-[560px] max-h-[80vh] flex flex-col overflow-hidden focus:outline-none shadow-2xl",
-                        onclick: move |evt| evt.stop_propagation(),
-                        onkeydown: move |evt| {
-                            if evt.key() == Key::Escape {
-                                export_open.set(false);
+                div { class: "fps-input",
+                    input {
+                        r#type: "number",
+                        min: "1",
+                        max: "60",
+                        value: "{fps}",
+                        onchange: move |evt| {
+                            if let Ok(v) = evt.value().parse::<u32>() {
+                                app_state.with_mut(|s| s.fps = v.clamp(1, 60));
                             }
                         },
+                    }
+                    span { class: "fps-label", "fps" }
+                }
 
-                        div { class: "flex items-center border-b border-[#333333]",
-                            for (i, label) in ["ANSI", "Plain+ANSI", "JSON"].iter().enumerate() {
-                                button {
-                                    class: if *export_tab.read() == i {
-                                        "px-4 py-2.5 text-sm font-bold text-[#ff6188] border-b-2 border-[#ff6188]"
-                                    } else {
-                                        "px-4 py-2.5 text-sm text-[#5b595c] hover:text-[#fcfcfa]"
-                                    },
-                                    onclick: move |_| export_tab.set(i),
-                                    "{label}"
-                                }
-                            }
-                            div { class: "flex-1" }
-                            button {
-                                class: "px-3 py-2 text-[#5b595c] hover:text-[#fcfcfa] text-base",
-                                aria_label: "Close export dialog",
-                                onclick: move |_| export_open.set(false),
-                                "✕"
-                            }
-                        }
+                span { class: "tb-meta mono",
+                    "F{active_idx + 1}/{frame_count}"
+                }
+            }
 
-                        if *export_tab.read() < 2 {
-                            div { class: "flex items-center gap-2 px-4 py-2 border-b border-[#333333]",
-                                span { class: "text-xs text-[#5b595c]", "Scope:" }
-                                button {
-                                    class: if !*all_frames.read() {
-                                        "text-xs px-2 py-1 rounded-lg bg-[#ff6188] text-[#1a1a1a] font-bold"
-                                    } else {
-                                        "text-xs px-2 py-1 rounded-lg bg-[#2e2e2e] text-[#fcfcfa] hover:bg-[#383838]"
-                                    },
-                                    onclick: move |_| all_frames.set(false),
-                                    "Current frame"
-                                }
-                                button {
-                                    class: if *all_frames.read() {
-                                        "text-xs px-2 py-1 rounded-lg bg-[#ff6188] text-[#1a1a1a] font-bold"
-                                    } else {
-                                        "text-xs px-2 py-1 rounded-lg bg-[#2e2e2e] text-[#fcfcfa] hover:bg-[#383838]"
-                                    },
-                                    onclick: move |_| all_frames.set(true),
-                                    "All frames"
-                                }
-                            }
-                        }
+            // Right: zoom + import/export
+            div { class: "toolbar-right",
+                div { class: "zoom-grp",
+                    button {
+                        class: "tb-btn icon",
+                        title: "Zoom out",
+                        onclick: move |_| app_state.with_mut(|s| s.zoom = (s.zoom / 1.25).clamp(0.25, 8.0)),
+                        "−"
+                    }
+                    span { class: "zoom-val mono", "{zoom_pct}%" }
+                    button {
+                        class: "tb-btn icon",
+                        title: "Zoom in",
+                        onclick: move |_| app_state.with_mut(|s| s.zoom = (s.zoom * 1.25).clamp(0.25, 8.0)),
+                        "+"
+                    }
+                }
+                span { class: "dot" }
 
-                        if *export_tab.read() < 2 {
-                            div { class: "flex flex-col flex-1 overflow-hidden p-3 gap-2",
-                                pre {
-                                    class: "flex-1 overflow-auto text-sm font-mono text-[#fcfcfa] bg-[#1a1a1a] p-3 rounded-xl border border-[#333333] whitespace-pre",
-                                    "{export_text}"
-                                }
-                                button {
-                                    class: "self-end text-xs bg-[#2e2e2e] hover:bg-[#383838] text-[#78dce8] px-3 py-1.5 rounded-lg border border-[#3c3c3c]",
-                                    onclick: {
-                                        let text = export_text.clone();
-                                        move |_| {
-                                            if let Some(window) = web_sys::window() {
-                                                let _ = window.navigator().clipboard().write_text(&text);
+                // Import
+                label {
+                    class: "tb-btn outlined",
+                    style: "cursor: pointer;",
+                    r#for: "file-import-tb",
+                    "↧ Import"
+                }
+                input {
+                    id: "file-import-tb",
+                    r#type: "file",
+                    accept: ".json,.ans,.txt",
+                    style: "display: none;",
+                    onchange: move |_| {
+                        let document = web_sys::window().unwrap().document().unwrap();
+                        let input = document.get_element_by_id("file-import-tb").unwrap()
+                            .dyn_into::<HtmlInputElement>().unwrap();
+                        if let Some(files) = input.files() {
+                            if let Some(file) = files.item(0) {
+                                let name = file.name();
+                                let is_json = name.ends_with(".json");
+                                let w = app_state.read().project.width;
+                                let h = app_state.read().project.height;
+                                let text_promise = file.text();
+                                let mut sr = app_state;
+                                wasm_bindgen_futures::spawn_local(async move {
+                                    if let Ok(txt_js) = wasm_bindgen_futures::JsFuture::from(text_promise).await {
+                                        if let Some(text) = txt_js.as_string() {
+                                            if is_json {
+                                                if let Ok(project) = import_json(&text) {
+                                                    sr.with_mut(|s| s.project = project);
+                                                }
+                                            } else {
+                                                let project = import_ansi(&text, w, h);
+                                                sr.with_mut(|s| s.project = project);
                                             }
                                         }
+                                    }
+                                });
+                            }
+                        }
+                    },
+                }
+
+                button {
+                    class: "tb-btn primary",
+                    style: "background: {accent_css}; color: #000;",
+                    onclick: move |_| export_open.set(true),
+                    "Export"
+                }
+            }
+        }
+
+        // Export modal
+        if *export_open.read() {
+            div {
+                style: "position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 100;",
+                onclick: move |_| export_open.set(false),
+                div {
+                    style: "background: var(--bg-2); border: 1px solid var(--line); border-radius: 12px; width: 560px; max-height: 80vh; display: flex; flex-direction: column; overflow: hidden;",
+                    onclick: move |evt| evt.stop_propagation(),
+                    onkeydown: move |evt| { if evt.key() == Key::Escape { export_open.set(false); } },
+
+                    // Tab bar
+                    div { style: "display: flex; align-items: center; border-bottom: 1px solid var(--line);",
+                        for (i, label) in ["ANSI", "JSON"].iter().enumerate() {
+                            button {
+                                style: if *export_tab.read() == i {
+                                    "padding: 10px 16px; font-size: 12px; font-weight: 700; color: var(--accent); border-bottom: 2px solid var(--accent); background: none; border-top: none; border-left: none; border-right: none; cursor: pointer;"
+                                } else {
+                                    "padding: 10px 16px; font-size: 12px; color: var(--fg-mute); background: none; border: none; cursor: pointer;"
+                                },
+                                onclick: move |_| export_tab.set(i),
+                                "{label}"
+                            }
+                        }
+                        div { style: "flex: 1;" }
+                        if *export_tab.read() == 0 {
+                            div { style: "display: flex; gap: 6px; padding: 0 12px; align-items: center;",
+                                span { style: "font-size: 11px; color: var(--fg-mute);", "Scope:" }
+                                button {
+                                    style: if !*all_frames.read() {
+                                        "font-size: 11px; padding: 4px 8px; border-radius: 4px; background: var(--accent); color: #000; font-weight: 700; border: none; cursor: pointer;"
+                                    } else {
+                                        "font-size: 11px; padding: 4px 8px; border-radius: 4px; background: var(--bg-3); color: var(--fg); border: none; cursor: pointer;"
                                     },
-                                    "Copy"
+                                    onclick: move |_| all_frames.set(false),
+                                    "Current"
+                                }
+                                button {
+                                    style: if *all_frames.read() {
+                                        "font-size: 11px; padding: 4px 8px; border-radius: 4px; background: var(--accent); color: #000; font-weight: 700; border: none; cursor: pointer;"
+                                    } else {
+                                        "font-size: 11px; padding: 4px 8px; border-radius: 4px; background: var(--bg-3); color: var(--fg); border: none; cursor: pointer;"
+                                    },
+                                    onclick: move |_| all_frames.set(true),
+                                    "All"
                                 }
                             }
-                        } else {
-                            div { class: "flex flex-col items-center justify-center flex-1 gap-4 p-6",
-                                p { class: "text-sm text-[#5b595c]", "Downloads the full project (all frames) as .json" }
-                                button {
-                                    class: "bg-[#ff6188] text-[#1a1a1a] font-bold text-sm px-6 py-2 rounded-lg hover:bg-[#e05078]",
-                                    onclick: move |_| {
-                                        let json = export_json(&app_state.read().project);
-                                        download_string(&json, "gritty-project.json", "application/json");
-                                    },
-                                    "Download .json"
-                                }
+                        }
+                        button {
+                            style: "padding: 8px 12px; color: var(--fg-mute); background: none; border: none; font-size: 16px; cursor: pointer;",
+                            onclick: move |_| export_open.set(false),
+                            "✕"
+                        }
+                    }
+
+                    // Content
+                    if *export_tab.read() == 0 {
+                        div { style: "display: flex; flex-direction: column; flex: 1; overflow: hidden; padding: 12px; gap: 8px;",
+                            pre {
+                                style: "flex: 1; overflow: auto; font-size: 12px; font-family: var(--font-mono); color: var(--fg); background: var(--bg-1); padding: 12px; border-radius: 8px; border: 1px solid var(--line); white-space: pre; min-height: 200px;",
+                                "{export_text}"
+                            }
+                            button {
+                                style: "align-self: flex-end; font-size: 12px; padding: 6px 12px; border-radius: 6px; background: var(--bg-3); color: var(--fg); border: 1px solid var(--line); cursor: pointer;",
+                                onclick: {
+                                    let text = export_text.clone();
+                                    move |_| {
+                                        if let Some(win) = web_sys::window() {
+                                            let _ = win.navigator().clipboard().write_text(&text);
+                                        }
+                                    }
+                                },
+                                "Copy"
+                            }
+                        }
+                    } else {
+                        div { style: "display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; gap: 16px; padding: 24px;",
+                            p { style: "font-size: 13px; color: var(--fg-mute);", "Downloads full project (all frames) as .json" }
+                            button {
+                                style: "background: var(--accent); color: #000; font-weight: 700; font-size: 13px; padding: 8px 24px; border-radius: 8px; border: none; cursor: pointer;",
+                                onclick: move |_| {
+                                    let json = export_json(&app_state.read().project);
+                                    download_string(&json, "gritty-project.json", "application/json");
+                                },
+                                "Download .json"
                             }
                         }
                     }

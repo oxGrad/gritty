@@ -5,7 +5,8 @@ use wasm_bindgen::closure::Closure;
 use wasm_bindgen::JsCast;
 use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement, KeyboardEvent};
 
-use crate::state::{AppState, Tool, CELL_H, CELL_W};
+use crate::color::to_hex;
+use crate::state::{AppState, Tool};
 
 pub const CANVAS_ID: &str = "main-canvas";
 
@@ -15,61 +16,84 @@ fn get_canvas_ctx() -> Option<(HtmlCanvasElement, CanvasRenderingContext2d)> {
         .get_element_by_id(CANVAS_ID)?
         .dyn_into::<HtmlCanvasElement>()
         .ok()?;
-    let ctx = canvas
-        .get_context("2d").ok()??
-        .dyn_into::<CanvasRenderingContext2d>()
-        .ok()?;
+    let ctx = canvas.get_context("2d").ok()??.dyn_into::<CanvasRenderingContext2d>().ok()?;
     Some((canvas, ctx))
 }
 
 fn draw_project(state: &AppState) {
     let project = &state.project;
+    let cell = state.cell_size;
     let Some((canvas, ctx)) = get_canvas_ctx() else { return };
 
-    let px_w = (project.width as f64 * CELL_W) as u32;
-    let px_h = (project.height as f64 * CELL_H) as u32;
+    let px_w = (project.width as f64 * cell) as u32;
+    let px_h = (project.height as f64 * cell) as u32;
     let dpr = web_sys::window().map(|w| w.device_pixel_ratio()).unwrap_or(1.0);
     canvas.set_width((px_w as f64 * dpr) as u32);
     canvas.set_height((px_h as f64 * dpr) as u32);
     let _ = ctx.scale(dpr, dpr);
 
-    ctx.set_font(&format!("{}px monospace", CELL_H as u32));
+    ctx.set_font(&format!("{}px 'JetBrains Mono', monospace", cell as u32));
     ctx.set_text_baseline("top");
     ctx.clear_rect(0.0, 0.0, px_w as f64, px_h as f64);
 
     let frame = &project.frames[project.active_frame];
+
+    // Onion skin (previous frame, faded)
+    if state.onion_skin && project.active_frame > 0 {
+        let prev = &project.frames[project.active_frame - 1];
+        ctx.set_global_alpha(0.22);
+        for row in 0..project.height {
+            for col in 0..project.width {
+                let c = &prev.cells[(row * project.width + col) as usize];
+                if c.ch != ' ' {
+                    let x = col as f64 * cell;
+                    let y = row as f64 * cell;
+                    ctx.set_fill_style_str(&format!("rgb({},{},{})", c.bg[0], c.bg[1], c.bg[2]));
+                    ctx.fill_rect(x, y, cell, cell);
+                    ctx.set_fill_style_str(&format!("rgb({},{},{})", c.fg[0], c.fg[1], c.fg[2]));
+                    let _ = ctx.fill_text(&c.ch.to_string(), x, y);
+                }
+            }
+        }
+        ctx.set_global_alpha(1.0);
+    }
+
+    // Active frame
     for row in 0..project.height {
         for col in 0..project.width {
             let idx = (row * project.width + col) as usize;
-            let cell = &frame.cells[idx];
-            let x = col as f64 * CELL_W;
-            let y = row as f64 * CELL_H;
-
-            ctx.set_fill_style_str(&format!(
-                "rgb({},{},{})", cell.bg[0], cell.bg[1], cell.bg[2]
-            ));
-            ctx.fill_rect(x, y, CELL_W, CELL_H);
-
-            if cell.ch != ' ' {
-                ctx.set_fill_style_str(&format!(
-                    "rgb({},{},{})", cell.fg[0], cell.fg[1], cell.fg[2]
-                ));
-                let _ = ctx.fill_text(&cell.ch.to_string(), x, y);
+            let c = &frame.cells[idx];
+            let x = col as f64 * cell;
+            let y = row as f64 * cell;
+            ctx.set_fill_style_str(&format!("rgb({},{},{})", c.bg[0], c.bg[1], c.bg[2]));
+            ctx.fill_rect(x, y, cell, cell);
+            if c.ch != ' ' {
+                if state.phosphor {
+                    let fg_css = format!("rgb({},{},{})", c.fg[0], c.fg[1], c.fg[2]);
+                    ctx.set_shadow_color(&fg_css);
+                    ctx.set_shadow_blur(4.0);
+                }
+                ctx.set_fill_style_str(&format!("rgb({},{},{})", c.fg[0], c.fg[1], c.fg[2]));
+                let _ = ctx.fill_text(&c.ch.to_string(), x, y);
+                if state.phosphor {
+                    ctx.set_shadow_blur(0.0);
+                }
             }
         }
     }
 
+    // Grid overlay
     if state.show_grid {
         ctx.begin_path();
-        ctx.set_stroke_style_str("rgba(255,255,255,0.12)");
+        ctx.set_stroke_style_str("rgba(255,255,255,0.06)");
         ctx.set_line_width(0.5);
         for col in 0..=project.width {
-            let x = col as f64 * CELL_W;
+            let x = col as f64 * cell;
             ctx.move_to(x, 0.0);
             ctx.line_to(x, px_h as f64);
         }
         for row in 0..=project.height {
-            let y = row as f64 * CELL_H;
+            let y = row as f64 * cell;
             ctx.move_to(0.0, y);
             ctx.line_to(px_w as f64, y);
         }
@@ -77,16 +101,15 @@ fn draw_project(state: &AppState) {
     }
 }
 
-// Convert a viewport-space point to a canvas cell coordinate.
-fn viewport_to_cell(vx: f64, vy: f64, pan_x: f64, pan_y: f64, zoom: f64) -> (u32, u32) {
+fn viewport_to_cell(vx: f64, vy: f64, pan_x: f64, pan_y: f64, zoom: f64, cell: f64) -> (u32, u32) {
     let cx = (vx - pan_x) / zoom;
     let cy = (vy - pan_y) / zoom;
-    ((cx / CELL_W) as u32, (cy / CELL_H) as u32)
+    ((cx / cell) as u32, (cy / cell) as u32)
 }
 
 fn apply_tool(state: &mut AppState, col: u32, row: u32) {
     match state.tool {
-        Tool::Brush => {
+        Tool::Brush | Tool::Rect | Tool::Line => {
             let fg = state.fg_color;
             let bg = state.bg_color;
             let ch = state.active_glyph;
@@ -95,14 +118,29 @@ fn apply_tool(state: &mut AppState, col: u32, row: u32) {
         Tool::Eraser => {
             state.project.erase_cell(col, row);
         }
+        Tool::Eyedrop => {
+            if col < state.project.width && row < state.project.height {
+                let idx = (row * state.project.width + col) as usize;
+                if let Some(frame) = state.project.frames.get(state.project.active_frame) {
+                    let c = &frame.cells[idx];
+                    state.fg_color = c.fg;
+                    state.bg_color = c.bg;
+                    if c.ch != ' ' { state.active_glyph = c.ch; }
+                }
+                state.tool = Tool::Brush;
+            }
+        }
+        Tool::Fill => {
+            let fg = state.fg_color;
+            let bg = state.bg_color;
+            let ch = state.active_glyph;
+            state.project.flood_fill(col, row, fg, bg, ch);
+        }
     }
 }
 
 fn window_size() -> (f64, f64) {
-    let win = match web_sys::window() {
-        Some(w) => w,
-        None => return (1280.0, 800.0),
-    };
+    let Some(win) = web_sys::window() else { return (1280.0, 800.0) };
     let w = win.inner_width().ok().and_then(|v| v.as_f64()).unwrap_or(1280.0);
     let h = win.inner_height().ok().and_then(|v| v.as_f64()).unwrap_or(800.0);
     (w, h)
@@ -112,231 +150,185 @@ fn window_size() -> (f64, f64) {
 pub fn Canvas() -> Element {
     let mut app_state = use_context::<Signal<AppState>>();
     let mut is_painting = use_signal(|| false);
-    let mut is_panning = use_signal(|| false);
-    let mut space_held = use_signal(|| false);
-    let mut pan_start = use_signal(|| (0.0f64, 0.0f64));
+    let mut is_panning  = use_signal(|| false);
+    let mut space_held  = use_signal(|| false);
+    let mut pan_start   = use_signal(|| (0.0f64, 0.0f64));
     let mut pan_start_offset = use_signal(|| (0.0f64, 0.0f64));
-    let mut last_mouse = use_signal(|| (0.0f64, 0.0f64));
+    let mut last_mouse  = use_signal(|| (0.0f64, 0.0f64));
+    let mut dpr_signal: Signal<f64> = use_signal(|| {
+        web_sys::window().map(|w| w.device_pixel_ratio()).unwrap_or(1.0)
+    });
 
-    // On retina screens (dpr=2) we start at zoom=1 so each logical canvas pixel
-    // maps to exactly one physical screen pixel — the DPR buffer handles sharpness.
-    let dpr_val = web_sys::window().map(|w| w.device_pixel_ratio()).unwrap_or(1.0);
-    let mut dpr_signal: Signal<f64> = use_signal(|| dpr_val);
-    let init_zoom = (2.0 / dpr_val).max(1.0);
-
-    // Centre canvas in viewport at DPR-aware zoom on first render.
+    // Centre canvas on first render using zoom from state
     let (init_px, init_py) = {
-        let (vw, vh) = window_size();
         let s = app_state.read();
-        let cw = s.project.width as f64 * CELL_W * init_zoom;
-        let ch = s.project.height as f64 * CELL_H * init_zoom;
+        let z = s.zoom;
+        let cw = s.project.width as f64 * s.cell_size * z;
+        let ch = s.project.height as f64 * s.cell_size * z;
+        let (vw, vh) = window_size();
         ((vw - cw) / 2.0, (vh - ch) / 2.0)
     };
-    let mut zoom = use_signal(|| init_zoom);
     let mut pan_x = use_signal(|| init_px);
     let mut pan_y = use_signal(|| init_py);
 
-    // Global spacebar listeners — space held turns left-drag into pan.
+    // Spacebar handler
     use_effect(move || {
-        let document = web_sys::window().unwrap().document().unwrap();
-
-        let down_cb = Closure::<dyn FnMut(_)>::wrap(Box::new(move |evt: KeyboardEvent| {
-            if evt.code() == "Space" {
-                evt.prevent_default(); // stop browser from scrolling
-                space_held.set(true);
-            }
+        let doc = web_sys::window().unwrap().document().unwrap();
+        let down = Closure::<dyn FnMut(_)>::wrap(Box::new(move |e: KeyboardEvent| {
+            if e.code() == "Space" { e.prevent_default(); space_held.set(true); }
         }));
-        let up_cb = Closure::<dyn FnMut(_)>::wrap(Box::new(move |evt: KeyboardEvent| {
-            if evt.code() == "Space" {
-                space_held.set(false);
-            }
+        let up = Closure::<dyn FnMut(_)>::wrap(Box::new(move |e: KeyboardEvent| {
+            if e.code() == "Space" { space_held.set(false); }
         }));
-
-        document.add_event_listener_with_callback("keydown", down_cb.as_ref().unchecked_ref()).unwrap();
-        document.add_event_listener_with_callback("keyup",   up_cb.as_ref().unchecked_ref()).unwrap();
-
-        // Leak the closures — they live for the app's lifetime.
-        down_cb.forget();
-        up_cb.forget();
+        doc.add_event_listener_with_callback("keydown", down.as_ref().unchecked_ref()).unwrap();
+        doc.add_event_listener_with_callback("keyup",   up.as_ref().unchecked_ref()).unwrap();
+        down.forget(); up.forget();
     });
 
-    // Detect DPR changes (browser zoom, moving window between monitors).
+    // DPR change detection
     use_effect(move || {
         let win = web_sys::window().unwrap();
         let cb = Closure::<dyn FnMut()>::wrap(Box::new(move || {
-            let new_dpr = web_sys::window()
-                .map(|w| w.device_pixel_ratio())
-                .unwrap_or(1.0);
-            if (*dpr_signal.peek() - new_dpr).abs() > 0.01 {
-                dpr_signal.set(new_dpr);
-            }
+            let new_dpr = web_sys::window().map(|w| w.device_pixel_ratio()).unwrap_or(1.0);
+            if (*dpr_signal.peek() - new_dpr).abs() > 0.01 { dpr_signal.set(new_dpr); }
         }));
         win.add_event_listener_with_callback("resize", cb.as_ref().unchecked_ref()).unwrap();
         cb.forget();
     });
 
+    // Redraw whenever state or DPR changes
     use_effect(move || {
-        let _ = *dpr_signal.read(); // re-run whenever DPR changes
+        let _ = *dpr_signal.read();
+        let _ = *pan_x.read();
+        let _ = *pan_y.read();
         draw_project(&app_state.read());
     });
 
-    let (css_w, css_h) = {
-        let s = app_state.read();
-        (
-            (s.project.width as f64 * CELL_W) as u32,
-            (s.project.height as f64 * CELL_H) as u32,
-        )
-    };
+    let s = app_state.read();
+    let z = s.zoom;
+    let cell = s.cell_size;
+    let css_w = (s.project.width as f64 * cell) as u32;
+    let css_h = (s.project.height as f64 * cell) as u32;
+    let active_idx = s.project.active_frame;
+    let total = s.project.frames.len();
+    let pw = s.project.width;
+    let ph = s.project.height;
+    drop(s);
 
-    let z = *zoom.read();
     let px = *pan_x.read();
     let py = *pan_y.read();
     let panning = *is_panning.read();
     let space = *space_held.read();
-    let zoom_pct = (z * 100.0).round() as i32;
 
-    let cursor = if panning { "cursor: grabbing;" }
-                 else if space { "cursor: grab;" }
-                 else { "cursor: crosshair;" };
+    let cursor = if panning { "grabbing" } else if space { "grab" } else { "crosshair" };
 
     rsx! {
-        // Workspace — fills full viewport, sits behind all floating panels.
-        div {
-            class: "absolute inset-0",
-            style: cursor,
+        div { class: "canvas-area",
 
-            onwheel: move |evt| {
-                let delta_x = match evt.delta() {
-                    WheelDelta::Pixels(v) => (v.x, v.y),
-                    WheelDelta::Lines(v)  => (v.x * 20.0, v.y * 20.0),
-                    WheelDelta::Pages(v)  => (v.x * 300.0, v.y * 300.0),
-                };
-                let (dx, dy) = delta_x;
-                if evt.modifiers().ctrl() {
-                    // Ctrl+scroll → zoom to cursor
-                    if dy == 0.0 { return; }
-                    let factor = if dy > 0.0 { 1.0 / 1.1 } else { 1.1 };
-                    let old_z = *zoom.read();
-                    let new_z = (old_z * factor).clamp(0.1, 16.0);
-                    let (mx, my) = *last_mouse.read();
-                    let ratio = new_z / old_z;
-                    let old_px = *pan_x.read();
-                    let old_py = *pan_y.read();
-                    pan_x.set(mx * (1.0 - ratio) + old_px * ratio);
-                    pan_y.set(my * (1.0 - ratio) + old_py * ratio);
-                    zoom.set(new_z);
-                } else if evt.modifiers().shift() {
-                    // Shift+scroll → pan horizontally (use dy when device only sends dy)
-                    let scroll = if dx != 0.0 { dx } else { dy };
-                    let cur = *pan_x.read();
-                    pan_x.set(cur - scroll);
-                } else {
-                    // Plain scroll → pan (vertical + horizontal for trackpads)
-                    let cur_y = *pan_y.read();
-                    pan_y.set(cur_y - dy);
-                    if dx != 0.0 {
-                        let cur_x = *pan_x.read();
-                        pan_x.set(cur_x - dx);
-                    }
-                }
-            },
-
-            onmousedown: move |evt| {
-                let coords = evt.element_coordinates();
-                let btn = evt.trigger_button();
-                let mut start_pan = || {
-                    is_panning.set(true);
-                    pan_start.set((coords.x, coords.y));
-                    pan_start_offset.set((*pan_x.read(), *pan_y.read()));
-                };
-                if btn == Some(MouseButton::Auxiliary) {
-                    // Middle-click always pans
-                    start_pan();
-                } else if btn == Some(MouseButton::Primary) {
-                    if *space_held.read() {
-                        // Space + left-click = pan (Figma hand tool)
-                        start_pan();
-                    } else {
-                        is_painting.set(true);
-                        let (col, row) = viewport_to_cell(
-                            coords.x, coords.y, *pan_x.read(), *pan_y.read(), *zoom.read(),
-                        );
-                        app_state.with_mut(|s| apply_tool(s, col, row));
-                    }
-                }
-            },
-
-            onmousemove: move |evt| {
-                let coords = evt.element_coordinates();
-                last_mouse.set((coords.x, coords.y));
-                if *is_painting.read() {
-                    let (col, row) = viewport_to_cell(
-                        coords.x, coords.y, *pan_x.read(), *pan_y.read(), *zoom.read(),
-                    );
-                    app_state.with_mut(|s| apply_tool(s, col, row));
-                } else if *is_panning.read() {
-                    let (sx, sy) = *pan_start.read();
-                    let (ox, oy) = *pan_start_offset.read();
-                    pan_x.set(ox + coords.x - sx);
-                    pan_y.set(oy + coords.y - sy);
-                }
-            },
-
-            onmouseup: move |_| {
-                is_painting.set(false);
-                is_panning.set(false);
-            },
-            onmouseleave: move |_| {
-                is_painting.set(false);
-                is_panning.set(false);
-            },
-
-            // Checkerboard workspace background
-            div { class: "absolute inset-0", style: "background: #1a1a1a;" }
-
-            // Stage — the transformed canvas container
-            div {
-                style: "position: absolute; top: 0; left: 0; transform: translate({px}px, {py}px) scale({z}); transform-origin: 0 0; box-shadow: 0 0 0 1px #3c3c3c, 0 12px 48px rgba(0,0,0,0.7);",
-                canvas {
-                    id: CANVAS_ID,
-                    style: "display: block; image-rendering: pixelated; width: {css_w}px; height: {css_h}px;",
-                }
+            // Tabline header
+            div { class: "canvas-tabline mono",
+                span { style: "color: #39ff14;", "●" }
+                " frame "
+                span { "{active_idx + 1:02}/{total:02}" }
+                span { class: "grow" }
+                span { class: "mute", "{pw}×{ph}" }
             }
 
-            // Zoom HUD — centred above the timeline
-            div {
-                class: "fixed bottom-16 left-1/2 -translate-x-1/2 flex items-center gap-0.5 z-30",
-                button {
-                    class: "w-7 h-7 rounded-lg bg-[#252525] border border-[#3c3c3c] text-[#9ca0a4] text-base leading-none hover:bg-[#303030] hover:text-[#fcfcfa]",
-                    title: "Zoom out",
-                    onclick: move |_| {
-                        let new_z = (*zoom.read() / 1.25).clamp(0.1, 16.0);
-                        zoom.set(new_z);
+            // Stage
+            div { class: "canvas-frame",
+                div {
+                    class: "canvas-stage",
+                    style: "cursor: {cursor};",
+
+                    onwheel: move |evt| {
+                        let (dx, dy) = match evt.delta() {
+                            WheelDelta::Pixels(v) => (v.x, v.y),
+                            WheelDelta::Lines(v)  => (v.x * 20.0, v.y * 20.0),
+                            WheelDelta::Pages(v)  => (v.x * 300.0, v.y * 300.0),
+                        };
+                        if evt.modifiers().ctrl() {
+                            if dy == 0.0 { return; }
+                            let factor = if dy > 0.0 { 1.0 / 1.1 } else { 1.1 };
+                            let old_z = app_state.read().zoom;
+                            let new_z = (old_z * factor).clamp(0.25, 8.0);
+                            let (mx, my) = *last_mouse.read();
+                            let ratio = new_z / old_z;
+                            let old_px = *pan_x.read();
+                            let old_py = *pan_y.read();
+                            pan_x.set(mx * (1.0 - ratio) + old_px * ratio);
+                            pan_y.set(my * (1.0 - ratio) + old_py * ratio);
+                            app_state.with_mut(|s| s.zoom = new_z);
+                        } else if evt.modifiers().shift() {
+                            let scroll = if dx != 0.0 { dx } else { dy };
+                            let cur = *pan_x.read();
+                            pan_x.set(cur - scroll);
+                        } else {
+                            let cur_y = *pan_y.read();
+                            pan_y.set(cur_y - dy);
+                            if dx != 0.0 {
+                                let cur_x = *pan_x.read();
+                                pan_x.set(cur_x - dx);
+                            }
+                        }
                     },
-                    "−"
-                }
-                button {
-                    class: "min-w-[52px] h-7 rounded-lg bg-[#252525] border border-[#3c3c3c] text-[#9ca0a4] text-xs font-mono hover:bg-[#303030] hover:text-[#fcfcfa]",
-                    title: "Reset zoom to 100%",
-                    onclick: move |_| {
-                        let (vw, vh) = window_size();
-                        let s = app_state.read();
-                        let cw = s.project.width as f64 * CELL_W;
-                        let ch = s.project.height as f64 * CELL_H;
-                        zoom.set(1.0);
-                        pan_x.set((vw - cw) / 2.0);
-                        pan_y.set((vh - ch) / 2.0);
+
+                    onmousedown: move |evt| {
+                        let coords = evt.element_coordinates();
+                        let btn = evt.trigger_button();
+                        let mut start_pan = || {
+                            is_panning.set(true);
+                            pan_start.set((coords.x, coords.y));
+                            pan_start_offset.set((*pan_x.read(), *pan_y.read()));
+                        };
+                        if btn == Some(MouseButton::Auxiliary) {
+                            start_pan();
+                        } else if btn == Some(MouseButton::Primary) {
+                            if *space_held.read() {
+                                start_pan();
+                            } else {
+                                is_painting.set(true);
+                                let cell = app_state.read().cell_size;
+                                let zoom = app_state.read().zoom;
+                                let (col, row) = viewport_to_cell(
+                                    coords.x, coords.y, *pan_x.read(), *pan_y.read(), zoom, cell,
+                                );
+                                app_state.with_mut(|s| apply_tool(s, col, row));
+                            }
+                        }
                     },
-                    "{zoom_pct}%"
-                }
-                button {
-                    class: "w-7 h-7 rounded-lg bg-[#252525] border border-[#3c3c3c] text-[#9ca0a4] text-base leading-none hover:bg-[#303030] hover:text-[#fcfcfa]",
-                    title: "Zoom in",
-                    onclick: move |_| {
-                        let new_z = (*zoom.read() * 1.25).clamp(0.1, 16.0);
-                        zoom.set(new_z);
+
+                    onmousemove: move |evt| {
+                        let coords = evt.element_coordinates();
+                        last_mouse.set((coords.x, coords.y));
+                        if *is_painting.read() {
+                            let cell = app_state.read().cell_size;
+                            let zoom = app_state.read().zoom;
+                            let (col, row) = viewport_to_cell(
+                                coords.x, coords.y, *pan_x.read(), *pan_y.read(), zoom, cell,
+                            );
+                            app_state.with_mut(|s| apply_tool(s, col, row));
+                        } else if *is_panning.read() {
+                            let (sx, sy) = *pan_start.read();
+                            let (ox, oy) = *pan_start_offset.read();
+                            pan_x.set(ox + coords.x - sx);
+                            pan_y.set(oy + coords.y - sy);
+                        }
                     },
-                    "+"
+
+                    onmouseup:    move |_| { is_painting.set(false); is_panning.set(false); },
+                    onmouseleave: move |_| { is_painting.set(false); is_panning.set(false); },
+
+                    // Checkerboard background
+                    div { style: "position: absolute; inset: 0; background: #0a0d10;" }
+
+                    // Transformed canvas stage
+                    div {
+                        style: "position: absolute; top: 0; left: 0; transform: translate({px}px, {py}px) scale({z}); transform-origin: 0 0; box-shadow: 0 0 0 1px #2a343a, 0 20px 60px rgba(0,0,0,0.8);",
+                        canvas {
+                            id: CANVAS_ID,
+                            style: "display: block; image-rendering: pixelated; width: {css_w}px; height: {css_h}px;",
+                        }
+                    }
                 }
             }
         }
